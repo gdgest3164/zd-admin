@@ -1,0 +1,80 @@
+<!doctype html><html lang=ko><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=robots content="noindex">
+<title>제로데일리</title><style>
+:root{--bg:#0f1115;--card:#171a21;--line:#262b36;--tx:#e6e9ef;--dim:#8b93a3;--blue:#4c8dff;--green:#3ecf8e;--amber:#ffb020}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-family:'Apple SD Gothic Neo',sans-serif;font-size:15px;line-height:1.5;padding:14px 12px 60px}
+h1{font-size:18px;margin:0 0 4px}h2{font-size:13px;color:var(--dim);margin:22px 0 8px;font-weight:700}
+.sync{font-size:12px;color:var(--dim)}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.card .lb{font-size:11px;color:var(--dim)}.card .v{font-size:17px;font-weight:800;margin-top:2px}
+.v.g{color:var(--green)}.v.b{color:var(--blue)}.v.a{color:var(--amber)}
+.order{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:12px;padding:12px;margin:10px 0}
+.name{font-weight:700}.price{color:var(--green);font-weight:800}
+.chip{display:inline-block;background:#0f141c;border:1px solid var(--line);border-radius:8px;padding:7px 11px;margin:3px 4px 3px 0;font-size:13px}
+.act{margin-top:9px}.act a,.act button,.act select,.act input{font-size:13px;padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:#1e2430;color:var(--tx);margin:3px 4px 3px 0}
+.act a{text-decoration:none;background:#0d2b4d;border-color:#1f4c86;color:#9ec8ff;font-weight:700;display:inline-block}
+.act button.ship{background:#12331f;border-color:#1d5c38;color:var(--green);font-weight:700}
+.act input{width:150px;background:#0f141c}
+.okbox{background:#12331f;border-left:3px solid var(--green);padding:9px 12px;border-radius:8px;font-size:13.5px}
+.alert{background:#241a10;border-left:3px solid var(--amber);padding:9px 12px;margin:6px 0;border-radius:8px;font-size:13px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1e2430;border:1px solid var(--blue);padding:10px 16px;border-radius:10px;display:none;font-size:13px;z-index:9}
+.dim{color:var(--dim)}
+</style></head><body>
+<h1>제로데일리 <span class=sync id=sync></span></h1>
+<div class=dim style="font-size:12px">발송처리·상태변경은 맥이 몇 분 내 실행합니다</div>
+<h2>이번 달</h2><div class=cards id=money></div>
+<h2>주문</h2><div id=orders></div>
+<h2>판단할 일</h2><div id=alerts></div>
+<div id=toast></div>
+<script>
+const KEY=new URLSearchParams(location.search).get('key');
+const BASE='https://gvhbwbvgwnfqpqyimizi.supabase.co/functions/v1/admin';
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2600)}
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function won(n){return n||n===0?Number(n).toLocaleString()+'원':'-'}
+async function act(kind,payload){
+ const r=await fetch(BASE+'/action?key='+KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,payload})});
+ const o=await r.json(); toast(o.ok?'대기열 등록 — 맥이 곧 처리합니다':'실패: '+(o.msg||'')); }
+function copyText(s){navigator.clipboard.writeText(s).then(()=>toast('복사됨'))}
+async function load(){
+ if(!KEY){document.body.innerHTML='<h3>접속 키가 필요합니다 (?key=)</h3>';return}
+ const r=await fetch(BASE+'/data?key='+KEY); if(!r.ok){document.body.innerHTML='<h3>키가 올바르지 않습니다</h3>';return}
+ const rows=await r.json(); const st={}; rows.forEach(x=>st[x.kind]=x);
+ const dash=(st.dashboard||{}).payload||{}; const ts=(st.dashboard||{}).updated_at;
+ document.getElementById('sync').textContent = ts? '· 동기화 '+new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) : '· 아직 동기화 없음';
+ const m=dash.money||{};
+ document.getElementById('money').innerHTML=[
+  ['합계 순이익',won(m.profit),'g'],['매출',won(m.sales),'b'],
+  ['세금 예수금',won(m.tax_transfer),'a'],['내 월급 가능액',won(m.salary),'g'],
+ ].map(([l,v,c])=>`<div class=card><div class=lb>${l}</div><div class="v ${c}">${v}</div></div>`).join('');
+ const orders=dash.orders||[];
+ const news=orders.filter(o=>o.상태!=='발송완료'&&o.상태!=='발송완료(수기)');
+ const dones=orders.length-news.length;
+ document.getElementById('orders').innerHTML=(news.length?news.map(o=>`
+  <div class=order>
+   <div class=name>${esc(o.상품명)}</div>
+   <div class=dim>${esc(o.옵션||'')} · <span class=price>${won(o.판매가)}</span> · 상태: ${esc(o.상태||'신규')}</div>
+   <div>
+    <span class=chip onclick="copyText('${esc(o.수령인)}')">${esc(o.수령인)}</span>
+    <span class=chip onclick="copyText('${esc(o.연락처)}')">${esc(o.연락처)}</span>
+    <span class=chip onclick="copyText('${esc(o.주소)}')">주소 복사</span>
+    ${o.배송메모?`<span class=chip onclick="copyText('${esc(o.배송메모)}')">메모</span>`:''}
+   </div>
+   <div class=act>
+    ${o.발주링크?`<a href="${esc(o.발주링크)}" target=_blank>무신사 발주 ↗</a>`:''}
+    <button onclick="act('status',{productOrderId:'${esc(o.productOrderId)}',상태:'발주완료'})">발주완료</button>
+   </div>
+   <div class=act>
+    <select id="dc_${esc(o.productOrderId)}"><option value=CJGLS>CJ대한통운</option><option value=HYUNDAI>롯데</option><option value=HANJIN>한진</option><option value=KGB>로젠</option><option value=EPOST>우체국</option></select>
+    <input id="tn_${esc(o.productOrderId)}" placeholder="송장번호" inputmode="numeric">
+    <button class=ship onclick="act('dispatch',{productOrderId:'${esc(o.productOrderId)}',company:document.getElementById('dc_${esc(o.productOrderId)}').value,tracking:document.getElementById('tn_${esc(o.productOrderId)}').value})">발송처리</button>
+   </div>
+  </div>`).join(''):'<div class=okbox>처리할 주문 없음</div>')
+  +(dones?`<div class=dim style="margin-top:6px">발송완료 ${dones}건</div>`:'');
+ const alerts=((dash.watch||{}).alerts||[]).filter(a=>a.처리==='판단필요'||a.처리==='실패');
+ document.getElementById('alerts').innerHTML=alerts.length?alerts.map(a=>`<div class=alert><b>[${esc(a.kind)}]</b> ${esc(a.name||'')}<br>${esc(a.msg||'')}</div>`).join(''):'<div class=okbox>판단할 일 없음</div>';
+}
+load(); setInterval(load,60000);
+</script></body></html>
