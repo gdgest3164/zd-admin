@@ -241,7 +241,7 @@ function render(d){
  // 상품 표
  document.getElementById('prods').innerHTML=
   `<tr><th>상품</th><th class=num>매입가</th><th class="num cp">🏆 쿠팡 판매가</th><th class="num cp">쿠팡 남는돈</th><th class="num ss">스스 판매가</th><th class="num ss">스스 남는돈</th><th>상태</th></tr>`+
-  d.products.map(p=>`<tr><td>${esc(p.이름)}</td><td class=num>${원(p.원가)}</td>
+  d.products.map(p=>`<tr><td>${p.발주링크?`<a href="${esc(p.발주링크)}" target=_blank style="color:var(--tx);text-decoration:underline dotted #4c8dff">${esc(p.이름)}</a>`:esc(p.이름)}</td><td class=num>${원(p.원가)}</td>
    <td class="num cp">${p.쿠팡판매가?원(p.쿠팡판매가):`<span class=dim style="font-size:11px">${esc(p.쿠팡사유||'-')}</span>`}</td><td class="num cp"><b>${원(p.쿠팡이익)}</b></td>
    <td class="num ss">${원(p.판매가)}</td><td class="num ss">${원(p.세전이익)}</td><td>${p.상태==='정상'?'<span class="tag ok">정상</span>':(p.상태||'').includes('자동')?`<span class="tag ok">${esc(p.상태)}</span>`:`<span class="tag bad">${esc(p.상태)}</span> <span class=dim>${esc(p.상세)}</span>`}</td></tr>`).join('');
 
