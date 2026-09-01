@@ -264,7 +264,7 @@ function renderMoney(){
   <div class=card><div class=lb>합계 순이익</div><div class="v green">${원(cur.profit)}</div>
    <div class=sub>매출 ${원(cur.sales)} · 마진율 ${cur.sales?Math.round(cur.profit/cur.sales*100):0}%</div></div>
   <div class=card><div class=lb>떼어둘 세금 (부가세 예수)</div><div class="v amber">${원(cur.vat)}</div>
-   <div class=sub>순이익÷11 — 신고 때 낼 돈<br>👉 세금통장 이체 권장(매출 10%): <b>${원(cur.tax_transfer)}</b></div></div>
+   <div class=sub>순이익÷11 (일반과세: 매입세액공제 전 보수적 추정 — 실납부는 이보다 적음)<br>👉 세금통장 이체 권장(매출 10%): <b>${원(cur.tax_transfer)}</b></div></div>
   <div class=card><div class=lb>내 월급 가능액 (세후 70%)</div><div class="v purple">${원(cur.salary)}</div>
    <div class=sub>사업 유보 30%: ${원(cur.reserve)}</div></div>
   <div class=card><div class=lb>새싹 등급 진행률 (최근 3개월)</div>
