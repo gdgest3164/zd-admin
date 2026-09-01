@@ -346,7 +346,7 @@ const API='https://gvhbwbvgwnfqpqyimizi.supabase.co/functions/v1/admin';
 function queueAct(kind,payload){
  return fetch(API+'/action?key='+RKEY,{method:'POST',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({kind,payload})}).then(r=>r.json())
-  .then(o=>toast(o.ok?'대기열 등록 — 맥이 5분 내 실행':'실패: '+(o.msg||'')));
+  .then(o=>toast(o.ok?'접수됨 — 30초 내 실행·반영':'실패: '+(o.msg||'')));
 }
 function load(){
  if(!RKEY){document.body.innerHTML='<h3 style="font-family:sans-serif">접속 키가 필요합니다 (?key=)</h3>';return}
