@@ -270,6 +270,9 @@ function renderMoney(){
   <div class=card><div class=lb>새싹 등급 진행률 (최근 3개월)</div>
    <div class="v purple">${(D.growth&&D.growth.새싹_건수||0)}/100건</div>
    <div class=sub>매출 ${원(D.growth&&D.growth.새싹_매출||0)} / 200만원 목표<br>${D.growth&&D.growth.주간최다SKU?`주간 최다판매: ${esc(D.growth.주간최다SKU.name)} ${D.growth.주간최다SKU.n}건`:'주간 판매 데이터 대기'}</div></div>
+  <div class=card style="border-color:${(D.growth&&D.growth.판매비중&&D.growth.판매비중.pct<3)?'#5c451d':'var(--line)'}"><div class=lb>스스 판매상품비중 (네이버 3% 룰)</div>
+   <div class="v ${(D.growth&&D.growth.판매비중&&D.growth.판매비중.pct<3)?'amber':'green'}">${D.growth&&D.growth.판매비중?D.growth.판매비중.pct:'-'}%</div>
+   <div class=sub>13개월 판매 ${D.growth&&D.growth.판매비중?D.growth.판매비중.sold:'-'}종 / 등록 ${D.growth&&D.growth.판매비중?D.growth.판매비중.listed:'-'}종${D.growth&&D.growth.판매비중&&D.growth.판매비중.need?`<br>⚠ 3% 안전선까지 <b>${D.growth.판매비중.need}종</b> 더 팔려야 — 미달 시 네이버가 미판매 상품 자동정리`:'<br>✓ 안전선 위'}</div></div>
   <div class=card><div class=lb>다음 세금 일정</div><div class=v style="font-size:15px">${esc(m.next_tax)}</div>
    <div class=sub>부가세 1/25·7/25 · 종합소득세 5/31</div></div>`;
  document.getElementById('months').innerHTML=
