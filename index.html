@@ -297,7 +297,18 @@ function renderMoney(){
      <div class="v ${rate>=20?'red':(rn?'amber':'green')}">${rn}건 <span style="font-size:14px;color:var(--dim)">/ 반품률 ${rate}%</span></div>
      <div class=sub>반품 ${rt.반품||0} · 교환 ${rt.교환||0}${rt.진행중?` · <b style="color:var(--amber)">진행중 ${rt.진행중}</b>`:''}<br>
       취소 금액 ${원(rt.금액||0)} · 실질 매출 <b style="color:var(--tx)">${원(cur.sales-(rt.금액||0))}</b><br>
-      반품배송비 고객부담 ${원(rt.고객부담||0)}${rt.판매자부담?` · <b style="color:var(--red)">판매자부담 ${원(rt.판매자부담)}</b>`:''}</div></div>`})()}`;
+      반품배송비 고객부담 ${원(rt.고객부담||0)}${rt.판매자부담?` · <b style="color:var(--red)">판매자부담 ${원(rt.판매자부담)}</b>`:''}</div></div>`})()}
+  ${(()=>{const S=D.settlement||{}; const t=S.total||{}; const pays=S.payouts||[];
+    const paid=pays.filter(p=>p.상태==='DONE').reduce((a,p)=>a+(+p.지급예정액||0),0);
+    const due=pays.filter(p=>p.상태!=='DONE').reduce((a,p)=>a+(+p.지급예정액||0),0);
+    if(!t.건수&&!pays.length) return `<div class=card><div class=lb>쿠팡 정산 실측</div><div class=v style="font-size:15px;color:var(--dim)">아직 인식된 매출 없음</div>
+      <div class=sub>배송완료+7일 또는 구매확정 후 쿠팡이 매출을 인식합니다. 인식되면 실수수료·실입금으로 자동 교체됩니다.${S.updated?`<br>마지막 조회 ${esc(S.updated)}`:''}</div></div>`;
+    const rate=t.판매?Math.round(t.수수료/t.판매*1000)/10:0;
+    return `<div class=card style="border-left:4px solid var(--cp)"><div class=lb>쿠팡 정산 실측 ${S.range?`(${esc(S.range)})`:''}</div>
+     <div class="v blue">${원(t.정산금||0)}</div>
+     <div class=sub>인식 ${t.건수}건 · 판매 ${원(t.판매||0)}${t.환불?` · <span style="color:var(--amber)">환불 ${원(t.환불)}</span>`:''}<br>
+      <b style="color:var(--tx)">실수수료 ${원(t.수수료||0)} (${rate}%)</b> ← 추정 11.55%와 비교<br>
+      ${paid?`지급완료 ${원(paid)} · `:''}${due?`지급예정 ${원(due)}`:''}${S.updated?`<br>조회 ${esc(S.updated)}`:''}</div></div>`})()}`;
  const RM=(D.returns&&D.returns.months)||{};
  document.getElementById('months').innerHTML=
   `<tr><th>월</th><th class="num cpc">🔵 쿠팡 건</th><th class="num cpc">쿠팡 순이익</th><th class="num ssc">🟢 스스 건</th><th class="num ssc">스스 순이익</th><th class=num>매출</th><th class=num>순이익</th><th class=num>반품</th><th class=num>반품률</th><th class=num>실질 매출</th></tr>`
