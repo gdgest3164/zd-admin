@@ -254,6 +254,7 @@ function renderMoney(){
  document.getElementById('mo_prev').disabled=(moIdx>=ms.length-1);
  document.getElementById('mo_next').disabled=(moIdx<=0);
  const cp=cur.coupang, ss=cur.ss;
+ const RM0=(D.returns&&D.returns.months)||{};
  const chCard=(cls,ico,nm,c,fee)=>`
   <div class="card chcard ${cls}"><div class=lb>${ico} ${nm} — ${cur.month}</div>
    <div class="v ${cls==='cp'?'blue':'green'}">${원(c.sales)}</div>
@@ -261,8 +262,22 @@ function renderMoney(){
  document.getElementById('money_ch').innerHTML=
   chCard('cp','🔵','쿠팡',cp,'11.55%')+chCard('ss','🟢','스마트스토어',ss,'6.7% 실측');
  document.getElementById('money_etc').innerHTML=`
-  <div class=card><div class=lb>합계 순이익</div><div class="v green">${원(cur.profit)}</div>
-   <div class=sub>매출 ${원(cur.sales)} · 마진율 ${cur.sales?Math.round(cur.profit/cur.sales*100):0}%</div></div>
+  ${(()=>{const prev=ms[moIdx+1]||null;
+    const dp=(a,b)=>b?Math.round((a-b)/Math.abs(b)*100):null;
+    const ds=dp(cur.sales,prev&&prev.sales), dpr=dp(cur.profit,prev&&prev.profit);
+    const arrow=v=>v===null?'':`<span style="color:${v>=0?'var(--green)':'var(--red)'}">${v>=0?'▲':'▼'}${Math.abs(v)}%</span>`;
+    const today=new Date(), curIsNow=cur.month===today.toISOString().slice(0,7);
+    const days=curIsNow?today.getDate():new Date(+cur.month.slice(0,4),+cur.month.slice(5,7),0).getDate();
+    const goal=10000000, pct=Math.min(100,Math.round(cur.profit/goal*1000)/10);
+    return `<div class=card><div class=lb>합계 순이익 ${arrow(dpr)}</div><div class="v green">${원(cur.profit)}</div>
+   <div class=sub>매출 ${원(cur.sales)} ${arrow(ds)} · 마진율 ${cur.sales?Math.round(cur.profit/cur.sales*100):0}%<br>
+    일평균 ${원(Math.round(cur.profit/days))} · 하루 ${(cur.count/days).toFixed(1)}건 (${days}일 기준)${prev?`<br>전월 대비 · ${cur.month.slice(5)}월 vs ${prev.month.slice(5)}월`:''}</div></div>
+  <div class=card><div class=lb>북극성 진행률 (월 순수익 1,000만)</div>
+   <div class="v ${pct>=100?'green':pct>=50?'amber':'purple'}">${pct}%</div>
+   <div class=sub><div style="height:7px;background:#0f141c;border-radius:4px;overflow:hidden;margin:6px 0">
+     <div style="height:100%;width:${Math.max(1,pct)}%;background:${pct>=100?'var(--green)':'var(--purple)'}"></div></div>
+    남은 목표 ${원(Math.max(0,goal-cur.profit))} · 이 페이스면 월 ${원(Math.round(cur.profit/days*30))}<br>
+    목표까지 하루 ${Math.max(0,Math.ceil((goal-cur.profit)/30/8000))}건 필요 (건당 8,000 기준)</div></div>`})()}
   <div class=card><div class=lb>떼어둘 세금 (부가세 예수)</div><div class="v amber">${원(cur.vat)}</div>
    <div class=sub>순이익÷11 (일반과세: 매입세액공제 전 보수적 추정 — 실납부는 이보다 적음)<br>👉 세금통장 이체 권장(매출 10%): <b>${원(cur.tax_transfer)}</b></div></div>
   <div class=card><div class=lb>내 월급 가능액 (세후 70%)</div><div class="v purple">${원(cur.salary)}</div>
@@ -274,14 +289,28 @@ function renderMoney(){
    <div class="v ${(D.growth&&D.growth.판매비중&&D.growth.판매비중.pct<3)?'amber':'green'}">${D.growth&&D.growth.판매비중?D.growth.판매비중.pct:'-'}%</div>
    <div class=sub>13개월 판매 ${D.growth&&D.growth.판매비중?D.growth.판매비중.sold:'-'}종 / 등록 ${D.growth&&D.growth.판매비중?D.growth.판매비중.listed:'-'}종${D.growth&&D.growth.판매비중&&D.growth.판매비중.need?`<br>⚠ 3% 안전선까지 <b>${D.growth.판매비중.need}종</b> 더 팔려야 — 미달 시 네이버가 미판매 상품 자동정리`:'<br>✓ 안전선 위'}</div></div>
   <div class=card><div class=lb>다음 세금 일정</div><div class=v style="font-size:15px">${esc(m.next_tax)}</div>
-   <div class=sub>부가세 1/25·7/25 · 종합소득세 5/31</div></div>`;
+   <div class=sub>부가세 1/25·7/25 · 종합소득세 5/31</div></div>
+  ${(()=>{const rt=RM0[cur.month]||{반품:0,교환:0,금액:0,진행중:0,고객부담:0,판매자부담:0};
+    const rn=(rt.반품||0)+(rt.교환||0), rate=cur.count?Math.round(rn/cur.count*100):0;
+    return `<div class=card style="border-color:${rate>=20?'#5c2b2b':'var(--line)'}">
+     <div class=lb>반품·교환 — ${cur.month}</div>
+     <div class="v ${rate>=20?'red':(rn?'amber':'green')}">${rn}건 <span style="font-size:14px;color:var(--dim)">/ 반품률 ${rate}%</span></div>
+     <div class=sub>반품 ${rt.반품||0} · 교환 ${rt.교환||0}${rt.진행중?` · <b style="color:var(--amber)">진행중 ${rt.진행중}</b>`:''}<br>
+      취소 금액 ${원(rt.금액||0)} · 실질 매출 <b style="color:var(--tx)">${원(cur.sales-(rt.금액||0))}</b><br>
+      반품배송비 고객부담 ${원(rt.고객부담||0)}${rt.판매자부담?` · <b style="color:var(--red)">판매자부담 ${원(rt.판매자부담)}</b>`:''}</div></div>`})()}`;
+ const RM=(D.returns&&D.returns.months)||{};
  document.getElementById('months').innerHTML=
-  `<tr><th>월</th><th class="num cpc">🔵 쿠팡 건</th><th class="num cpc">쿠팡 순이익</th><th class="num ssc">🟢 스스 건</th><th class="num ssc">스스 순이익</th><th class=num>합계 매출</th><th class=num>합계 순이익</th></tr>`
-  +ms.map((r,i)=>`<tr style="${i===moIdx?'background:#0d1b2e':''};cursor:pointer" onclick="moIdx=${i};renderMoney()">
+  `<tr><th>월</th><th class="num cpc">🔵 쿠팡 건</th><th class="num cpc">쿠팡 순이익</th><th class="num ssc">🟢 스스 건</th><th class="num ssc">스스 순이익</th><th class=num>매출</th><th class=num>순이익</th><th class=num>반품</th><th class=num>반품률</th><th class=num>실질 매출</th></tr>`
+  +ms.map((r,i)=>{const rt=RM[r.month]||{반품:0,교환:0,금액:0};
+    const rn=(rt.반품||0)+(rt.교환||0), rate=r.count?Math.round(rn/r.count*100):0;
+    return `<tr style="${i===moIdx?'background:#0d1b2e':''};cursor:pointer" onclick="moIdx=${i};renderMoney()">
     <td><b>${r.month}</b></td>
     <td class="num cpc">${r.coupang.count}</td><td class="num cpc">${원(r.coupang.profit)}</td>
     <td class="num ssc">${r.ss.count}</td><td class="num ssc">${원(r.ss.profit)}</td>
-    <td class=num>${원(r.sales)}</td><td class=num><b>${원(r.profit)}</b></td></tr>`).join('');
+    <td class=num>${원(r.sales)}</td><td class=num><b>${원(r.profit)}</b></td>
+    <td class=num style="color:${rn?'var(--amber)':'var(--dim)'}">${rn?rn+'건':'-'}</td>
+    <td class=num style="color:${rate>=20?'var(--red)':rate?'var(--amber)':'var(--dim)'}">${rn?rate+'%':'-'}</td>
+    <td class=num>${원(r.sales-(rt.금액||0))}</td></tr>`}).join('');
 }
 
 /* ── 📦 상품 ── */
@@ -340,31 +369,27 @@ function renderSys(){
  document.getElementById('log').textContent=D.log;
 }
 
-// ── 원격판: 데이터는 클라우드에서, 액션은 큐로 (맥이 5분 내 실행) ──
-const RKEY=new URLSearchParams(location.search).get('key');
-const API='https://gvhbwbvgwnfqpqyimizi.supabase.co/functions/v1/admin';
-function queueAct(kind,payload){
- return fetch(API+'/action?key='+RKEY,{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({kind,payload})}).then(r=>r.json())
-  .then(o=>toast(o.ok?'접수됨 — 30초 내 실행·반영':'실패: '+(o.msg||'')));
+function load(){fetch('/data').then(r=>r.json()).then(render).catch(()=>{})}
+function run(j){toast('실행 중…');fetch('/run/'+j,{method:'POST'}).then(r=>r.text()).then(t=>{toast(t);watchJob(j,0)})}
+function watchJob(j,n){ // 완료 즉시 화면 반영 — 60초 폴링 기다리지 않음 (2026-09-01)
+ if(n>60){toast(j+' 아직 실행 중 — 완료 시 자동 반영됩니다');return}
+ fetch('/jobstate/'+j).then(r=>r.json()).then(s=>{
+  if(s.running){if(n%3==2)load();setTimeout(()=>watchJob(j,n+1),1500)}
+  else{load();toast('✓ 완료 — 화면 반영됨')}
+ }).catch(()=>setTimeout(()=>watchJob(j,n+1),1500))}
+function mark(pid,st){
+ fetch('/status',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({productOrderId:pid,상태:st})})
+  .then(r=>r.json()).then(d=>{toast(d.msg);load()});
 }
-function load(){
- if(!RKEY){document.body.innerHTML='<h3 style="font-family:sans-serif">접속 키가 필요합니다 (?key=)</h3>';return}
- fetch(API+'/data?key='+RKEY).then(r=>r.json()).then(rows=>{
-  const st={};(rows||[]).forEach(x=>st[x.kind]=x);
-  const d=(st.dashboard||{}).payload; const ts=(st.dashboard||{}).updated_at;
-  if(!d){toast('아직 동기화된 데이터 없음');return}
-  document.title='제로데일리 관제탑 · '+new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-  render(d);
- }).catch(()=>{});
-}
-function run(j){queueAct('run',{job:j})}
-function mark(pid,st){queueAct('status',{productOrderId:pid,상태:st})}
 function ship(pid,mk){
  const dc=document.getElementById('dc_'+pid).value, tn=document.getElementById('tn_'+pid).value.trim();
  if(!tn){toast('송장번호를 입력하세요');return}
  if(!confirm(`발송처리 하시겠어요?\n택배사: ${dc} / 송장: ${tn}\n(${mk==='쿠팡'?'쿠팡':'스마트스토어'}에 실제 발송으로 등록됩니다)`))return;
- queueAct('dispatch',{productOrderId:pid,company:dc,tracking:tn});
+ toast('발송처리 중…');
+ fetch('/dispatch',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({productOrderId:pid,company:dc,tracking:tn})})
+  .then(r=>r.json()).then(d=>{toast(d.msg);load()});
 }
 showTab(localStorage.getItem('zd_tab')||'todo');
 load();setInterval(()=>{if(!paused)load()},60000);
