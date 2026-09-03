@@ -263,28 +263,28 @@ function renderMoney(){
  moIdx=Math.min(moIdx,ms.length-1);
  const cur=ms[moIdx];
  document.getElementById('mo_cur').textContent=cur.month;
- document.getElementById('mo_cnt').textContent=`판매 ${cur.count}건 · 구글시트 판매기록 기준`;
+ document.getElementById('mo_cnt').textContent=`판매 ${cur.count_net??cur.count}건 (반품 ${cur.returned||0} 제외) · 구글시트 판매기록 기준`;
  document.getElementById('mo_prev').disabled=(moIdx>=ms.length-1);
  document.getElementById('mo_next').disabled=(moIdx<=0);
  const cp=cur.coupang, ss=cur.ss;
  const RM0=(D.returns&&D.returns.months)||{};
  const chCard=(cls,ico,nm,c,fee)=>`
   <div class="card chcard ${cls}"><div class=lb>${ico} ${nm} — ${cur.month}</div>
-   <div class="v ${cls==='cp'?'blue':'green'}">${원(c.sales)}</div>
-   <div class=sub>주문 <b style="color:var(--tx)">${c.count}건</b> · 순이익 <b style="color:var(--green)">${원(c.profit)}</b> · 수수료 ${fee}</div></div>`;
+   <div class="v ${cls==='cp'?'blue':'green'}">${원(c.sales_net??c.sales)}</div>
+   <div class=sub>주문 <b style="color:var(--tx)">${c.count_net??c.count}건</b>${c.returned?` (반품 ${c.returned} 제외)`:''} · 순이익 <b style="color:var(--green)">${원(c.profit)}</b> · 수수료 ${fee}</div></div>`;
  document.getElementById('money_ch').innerHTML=
-  chCard('cp','🔵','쿠팡',cp,'11.55%')+chCard('ss','🟢','스마트스토어',ss,'6.7% 실측');
+  chCard('cp','🔵','쿠팡',cp,'11.55% 추정 · 첫 정산 후 실측 반영')+chCard('ss','🟢','스마트스토어',ss,'6.63% 실측');
  document.getElementById('money_etc').innerHTML=`
   ${(()=>{const prev=ms[moIdx+1]||null;
     const dp=(a,b)=>b?Math.round((a-b)/Math.abs(b)*100):null;
-    const ds=dp(cur.sales,prev&&prev.sales), dpr=dp(cur.profit,prev&&prev.profit);
+    const cs=cur.sales_net??cur.sales, ccount=cur.count_net??cur.count; const ds=dp(cs,prev&&(prev.sales_net??prev.sales)), dpr=dp(cur.profit,prev&&prev.profit);
     const arrow=v=>v===null?'':`<span style="color:${v>=0?'var(--green)':'var(--red)'}">${v>=0?'▲':'▼'}${Math.abs(v)}%</span>`;
     const today=new Date(), curIsNow=cur.month===today.toISOString().slice(0,7);
     const days=curIsNow?today.getDate():new Date(+cur.month.slice(0,4),+cur.month.slice(5,7),0).getDate();
     const goal=10000000, pct=Math.min(100,Math.round(cur.profit/goal*1000)/10);
     return `<div class=card><div class=lb>합계 순이익 ${arrow(dpr)}</div><div class="v green">${원(cur.profit)}</div>
-   <div class=sub>매출 ${원(cur.sales)} ${arrow(ds)} · 마진율 ${cur.sales?Math.round(cur.profit/cur.sales*100):0}%<br>
-    일평균 ${원(Math.round(cur.profit/days))} · 하루 ${(cur.count/days).toFixed(1)}건 (${days}일 기준)${prev?`<br>전월 대비 · ${cur.month.slice(5)}월 vs ${prev.month.slice(5)}월`:''}</div></div>
+   <div class=sub>유효 매출 ${원(cs)} ${arrow(ds)} · 마진율 ${cs?Math.round(cur.profit/cs*100):0}%<br>
+    일평균 ${원(Math.round(cur.profit/days))} · 하루 ${(ccount/days).toFixed(1)}건 (${days}일 기준, 반품 제외)${prev?`<br>전월 대비 · ${cur.month.slice(5)}월 ${days}일치 vs ${prev.month.slice(5)}월 전체`:''}</div></div>
   <div class=card><div class=lb>북극성 진행률 (월 순수익 1,000만)</div>
    <div class="v ${pct>=100?'green':pct>=50?'amber':'purple'}">${pct}%</div>
    <div class=sub><div style="height:7px;background:#0f141c;border-radius:4px;overflow:hidden;margin:6px 0">
@@ -292,7 +292,7 @@ function renderMoney(){
     남은 목표 ${원(Math.max(0,goal-cur.profit))} · 이 페이스면 월 ${원(Math.round(cur.profit/days*30))}<br>
     목표까지 하루 ${Math.max(0,Math.ceil((goal-cur.profit)/30/8000))}건 필요 (건당 8,000 기준)</div></div>`})()}
   <div class=card><div class=lb>떼어둘 세금 (부가세 예수)</div><div class="v amber">${원(cur.vat)}</div>
-   <div class=sub>순이익÷11 (일반과세: 매입세액공제 전 보수적 추정 — 실납부는 이보다 적음)<br>👉 세금통장 이체 권장(매출 10%): <b>${원(cur.tax_transfer)}</b></div></div>
+   <div class=sub>순이익÷11 (일반과세: 매입세액공제 전 보수적 추정 — 실납부는 이보다 적음)<br>👉 세금통장 이체 권장(유효 매출 10%): <b>${원(cur.tax_transfer)}</b></div></div>
   <div class=card><div class=lb>내 월급 가능액 (세후 70%)</div><div class="v purple">${원(cur.salary)}</div>
    <div class=sub>사업 유보 30%: ${원(cur.reserve)}</div></div>
   <div class=card><div class=lb>새싹 등급 진행률 (최근 3개월)</div>
