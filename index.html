@@ -314,7 +314,7 @@ function renderMoney(){
       ${paid?`지급완료 ${원(paid)} · `:''}${due?`지급예정 ${원(due)}`:''}${nvLine}${rcLine}${S.updated?`<br>조회 ${esc(S.updated)}`:''}</div></div>`})()}`;
  const RM=(D.returns&&D.returns.months)||{};
  document.getElementById('months').innerHTML=
-  `<tr><th>월</th><th class="num cpc">🔵 쿠팡 건</th><th class="num cpc">쿠팡 순이익</th><th class="num ssc">🟢 스스 건</th><th class="num ssc">스스 순이익</th><th class=num>매출</th><th class=num>순이익</th><th class=num>반품</th><th class=num>반품률</th><th class=num>실질 매출</th></tr>`
+  `<tr><th>월</th><th class="num cpc">🔵 쿠팡 건</th><th class="num cpc">쿠팡 순이익</th><th class="num ssc">🟢 스스 건</th><th class="num ssc">스스 순이익</th><th class=num>매출</th><th class=num>순이익</th><th class=num>반품</th><th class=num>반품률</th><th class=num title="반품 건 이익 제외 + 무신사 반품비·판매자부담 배송비 (고객부담 회수는 정산 확정 후 반영)">반품손실</th><th class=num>실질 매출</th></tr>`
   +ms.map((r,i)=>{const rt=RM[r.month]||{반품:0,교환:0,금액:0};
     const rn=(rt.반품||0)+(rt.교환||0), rate=r.count?Math.round(rn/r.count*100):0;
     return `<tr style="${i===moIdx?'background:#0d1b2e':''};cursor:pointer" onclick="moIdx=${i};renderMoney()">
@@ -323,7 +323,7 @@ function renderMoney(){
     <td class="num ssc">${r.ss.count}</td><td class="num ssc">${원(r.ss.profit)}</td>
     <td class=num>${원(r.sales)}</td><td class=num><b>${원(r.profit)}</b></td>
     <td class=num style="color:${rn?'var(--amber)':'var(--dim)'}">${rn?rn+'건':'-'}</td>
-    <td class=num style="color:${rate>=20?'var(--red)':rate?'var(--amber)':'var(--dim)'}">${rn?rate+'%':'-'}</td>
+    <td class=num style="color:${rate>=20?'var(--red)':rate?'var(--amber)':'var(--dim)'}">${rn?rate+'%':'-'}</td><td class=num>${r.return_loss?`<span style="color:var(--red)">-${원(r.return_loss)}</span>`:'-'}</td>
     <td class=num>${원(r.sales-(rt.금액||0))}</td></tr>`}).join('');
 }
 
