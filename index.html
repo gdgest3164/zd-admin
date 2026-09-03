@@ -116,7 +116,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:13px;margin:16px 0 8px
  <div class="cards mt" id=money_etc></div>
  <h2>월별 추이 — 채널 분리</h2>
  <div style="overflow-x:auto"><table id=months></table></div>
- <h3 style="margin:14px 0 6px">경영 손익 — CEO 뷰 <span style="font-size:12px;color:var(--dim)">공헌이익 → 마케팅비 → 고정비 → 영업이익 · 손익분기 · 북극성 페이스</span></h3>
+ <h3 style="margin:14px 0 6px">경영 손익 — CEO 뷰 <span style="font-size:12px;color:var(--dim)">판매 − 원가 − 수수료 − 반품손실 = 공헌이익 → 광고비 빼면 쇼핑 순이익 · 손익분기 · 북극성 페이스</span></h3>
  <div style="overflow-x:auto"><table id=pnl></table></div>
  <div id=pnlnote style="font-size:12px;color:var(--dim);margin-top:6px;line-height:1.6"></div>
 </section>
@@ -331,9 +331,9 @@ function renderMoney(){
  // ── 경영 손익 (2026-09-03) ──
  const P=D.pnl||{}, pm=P.months||[], signed=v=>(v<0?'-':'')+원(Math.abs(v||0)), neg=v=>v?'-'+원(v):'-';
  const pc=v=>`<b style="color:${v<0?'var(--red)':'var(--green,#4ade80)'}">${signed(v)}</b>`;
- document.getElementById('pnl').innerHTML=`<tr><th>월</th><th class=num>유효 주문</th><th class=num>매출(유효)</th><th class=num>공헌이익</th><th class=num>이익률</th><th class=num>건당</th><th class=num>마케팅비</th><th class=num>고정비</th><th class=num>영업이익</th><th class=num>손익분기</th><th class=num>월환산</th><th class=num>북극성</th></tr>`
-  +pm.map(x=>`<tr><td><b>${x.month}</b></td><td class=num>${x.유효건}${x.반품?` <span style="color:var(--amber)">(반품 ${x.반품})</span>`:''}</td><td class=num>${원(x.유효매출)}</td><td class=num>${원(x.공헌이익)}</td><td class=num>${x.공헌이익률}%</td><td class=num>${원(x.건당공헌)}</td><td class=num>${neg(x.마케팅비)}</td><td class=num>${neg(x.고정비)}</td><td class=num>${pc(x.영업이익)}</td><td class=num>${x.손익분기_월건수!=null?x.손익분기_월건수+'건/월':'-'}</td><td class=num>${x.월환산건}건</td><td class=num>${x.북극성진행률}%</td></tr>`).join('')
-  +(P.total?`<tr style="border-top:2px solid var(--line,#334)"><td><b>누적</b></td><td class=num>${P.total.유효건}</td><td></td><td class=num>${원(P.total.공헌이익)}</td><td></td><td class=num>${원(P.total.건당공헌)}</td><td class=num>${neg(P.total.마케팅비)}</td><td class=num>${neg(P.total.고정비)}</td><td class=num>${pc(P.total.영업이익)}</td><td colspan=3></td></tr>`:'');
+ document.getElementById('pnl').innerHTML=`<tr><th>월</th><th class=num>유효 주문</th><th class=num>매출(유효)</th><th class=num>공헌이익</th><th class=num>이익률</th><th class=num>건당</th><th class=num>마케팅비</th><th class=num>쇼핑 순이익</th><th class=num>손익분기</th><th class=num>월환산</th><th class=num>북극성</th></tr>`
+  +pm.map(x=>`<tr><td><b>${x.month}</b></td><td class=num>${x.유효건}${x.반품?` <span style="color:var(--amber)">(반품 ${x.반품})</span>`:''}</td><td class=num>${원(x.유효매출)}</td><td class=num>${원(x.공헌이익)}</td><td class=num>${x.공헌이익률}%</td><td class=num>${원(x.건당공헌)}</td><td class=num>${neg(x.마케팅비)}</td><td class=num>${pc(x.쇼핑순이익)}</td><td class=num>${x.손익분기_월건수!=null?x.손익분기_월건수+'건/월':'-'}</td><td class=num>${x.월환산건}건</td><td class=num>${x.북극성진행률}%</td></tr>`).join('')
+  +(P.total?`<tr style="border-top:2px solid var(--line,#334)"><td><b>누적</b></td><td class=num>${P.total.유효건}</td><td></td><td class=num>${원(P.total.공헌이익)}</td><td></td><td class=num>${원(P.total.건당공헌)}</td><td class=num>${neg(P.total.마케팅비)}</td><td class=num>${pc(P.total.쇼핑순이익)}</td><td colspan=3></td></tr>`:'');
  const N=P.north||{}, C=P.cash||{};
  document.getElementById('pnlnote').innerHTML=P.months?`현금: 입금 ${원(C.입금완료||0)} − 지출 ${원(C.지출||0)} = ${pc(C.순현금||0)} (미수금은 후잉 정산예정금 잔액 기준)<br>북극성: 목표 일 ${N.목표_일건수}건 · 현재 일 ${N.현재_일평균}건 (운영 ${N.운영일수}일) · 리스팅 ${N.리스팅}개 → 리스팅당 월 ${N.리스팅당_월주문_실측}건 (계획 가정 0.3~0.5) · 지금 전환율로 일 40건이면 리스팅 ${N.필요_리스팅_현재전환?N.필요_리스팅_현재전환.toLocaleString():'-'}개 필요<br>${P.주의||''}`:'';
 }
