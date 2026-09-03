@@ -388,8 +388,10 @@ const API='https://gvhbwbvgwnfqpqyimizi.supabase.co/functions/v1/admin';
 function queueAct(kind,payload){
  return fetch(API+'/action?key='+RKEY,{method:'POST',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({kind,payload})}).then(r=>r.json())
-  .then(o=>toast(o.ok?'접수됨 — 30초 내 실행·반영':'실패: '+(o.msg||'')));
+  .then(o=>{toast(o.ok?'접수됨 — 10초 내 실행·반영':'실패: '+(o.msg||''));if(o.ok)fastPoll(15)});
 }
+// 액션 접수 후 60초 타이머를 기다리지 않고 3초 간격으로 결과를 당겨온다 (2026-09-03: 수집 버튼 체감 지연 원인 = 폴러 30s + 화면 60s)
+function fastPoll(n){if(n<=0)return;setTimeout(()=>{load();fastPoll(n-1)},3000)}
 function load(){
  if(!RKEY){document.body.innerHTML='<h3 style="font-family:sans-serif">접속 키가 필요합니다 (?key=)</h3>';return}
  fetch(API+'/data?key='+RKEY).then(r=>r.json()).then(rows=>{
