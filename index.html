@@ -192,19 +192,25 @@ function renderTodo(){
  document.getElementById('orders_h').textContent=`처리할 주문 ${news.length}건 (쿠팡 ${cpN.length} · 스스 ${ssN.length})`+(dones.length?` · 발송완료 ${dones.length}건`:'');
  const card=o=>{
   const st=o.상태||'신규';
-  const isNew=st==='신규', isOrdered=st==='발주완료', isDone=st.startsWith('발송완료');
+  const isNew=st==='신규', isCart=st==='장바구니', isOrdered=st==='발주완료', isDone=st.startsWith('발송완료');
   const musinsa=o.무신사번호?`https://www.musinsa.com/products/${o.무신사번호}`:null;
   const p=o.손익||{};
   const full=`${o.수령인} ${o.연락처}\n${o.주소}\n${o.배송메모||''}`.trim();
   const chip=(k,v)=>v?`<span class=chip onclick='copy(${JSON.stringify(String(v))},"${k} 복사됨")'><span class=k>${k}</span>${esc(v)}</span>`:'';
   const steps=`<div class=steps>
     <span class="step ${isNew?'cur':'done'}">① 신규</span><span class=arrow>→</span>
-    <span class="step ${isOrdered?'cur':(isDone?'done':'')}">② 발주완료 (무신사 주문됨)</span><span class=arrow>→</span>
-    <span class="step ${isDone?'done':''}">③ 발송완료 (송장 등록)</span></div>`;
+    <span class="step ${isCart?'cur':((isOrdered||isDone)?'done':'')}">② 장바구니 (결제 승인 대기)</span><span class=arrow>→</span>
+    <span class="step ${isOrdered?'cur':(isDone?'done':'')}">③ 발주완료 (무신사 주문됨)</span><span class=arrow>→</span>
+    <span class="step ${isDone?'done':''}">④ 발송완료 (송장 등록)</span></div>`;
   let actions='';
   if(isNew){actions=`<div class=act>
     ${musinsa?`<a class=go href="${musinsa}" target=_blank>무신사에서 발주하기 ↗</a>`:''}
     <button class=mark onclick="mark('${o.productOrderId}','발주완료')">✔ 발주 완료로 표시</button>
+   </div>`}
+  else if(isCart){const c=o.장바구니||{};actions=`<div class=act>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:6px">장바구니 담김 ${esc(c.시각||'')} · 옵션 <b>${esc(c.옵션||o.옵션||'')}</b> · 예상 결제 <b>${원(o.원가)}</b> · 배송지 ${esc(o.수령인)} ${esc(o.주소)}</div>
+    <button class=ship onclick="pay('${o.productOrderId}')">💳 결제 승인 — 무신사 결제 실행</button>
+    <button class=mark onclick="mark('${o.productOrderId}','발주완료')">✔ 직접 결제함 — 표시만</button>
    </div>`}
   else if(isOrdered){actions=`<div class=act>
     ${musinsa?`<a href="${musinsa}" target=_blank>무신사 주문내역 확인 ↗</a>`:''}
@@ -414,6 +420,7 @@ function load(){
  }).catch(()=>{});
 }
 function run(j){queueAct('run',{job:j})}
+function pay(pid){if(!confirm('무신사에서 이 주문을 결제합니다. 진행할까요? (최대 2분)'))return;queueAct('pay',{productOrderId:pid})}
 function mark(pid,st){queueAct('status',{productOrderId:pid,상태:st})}
 function ship(pid,mk){
  const dc=document.getElementById('dc_'+pid).value, tn=document.getElementById('tn_'+pid).value.trim();
