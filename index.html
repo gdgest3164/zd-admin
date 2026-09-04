@@ -524,6 +524,8 @@ function renderFlow(){
   ['orders','cart',`신규 ${od.new||0}`],['cart','pay',`대기 ${od.cart||0}`],['pay','ship',`발주 ${od.ordered||0}`],['ship','settle',`발송 ${od.shipped||0}`],['settle','whooing',`대기 ${se.whooing_pending||0}`]];
  for(const [a,b,label] of edges){byId[a].outputs[0].label=label||''; byId[a].connect(0,byId[b],0);}
  fitFlow();
+ if(!gc.is_rendering&&gc.startRendering)gc.startRendering();   // 숨겨진 상태에서 만들어졌으면 렌더 루프가 꺼져 있을 수 있다
+ gc.draw(true,true);
 }
 function fitFlow(){const z=window.__zd;if(!z)return;const {gc,cv}=z;const narrow=!!z.narrow;const gw=narrow?20+2*240:30+6*250, gh=narrow?40+6*120+10:50+2*180+20;const targetH=narrow?720:440; if(cv.height!==targetH){cv.height=targetH;cv.style.height=targetH+'px';gc.resize(cv.width,cv.height);}const s=Math.min(1,(cv.width-16)/gw,(cv.height-10)/gh);gc.ds.scale=s;gc.ds.offset=[8/s,8/s];gc.setDirty(true,true);}
 function flowDetail(id){
