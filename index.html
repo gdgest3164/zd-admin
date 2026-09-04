@@ -510,7 +510,7 @@ function renderFlow(){
   gc.allow_searchbox=false; gc.allow_dragnodes=false; gc.allow_reconnect_links=false; gc.read_only=true; gc.links_render_mode=LiteGraph.SPLINE_LINK; gc.render_connection_arrows=true; gc.render_curved_connections=true; gc.show_info=false; gc.background_image=LGraphCanvas.DEFAULT_BACKGROUND_IMAGE||gc.background_image;
   gc.getMenuOptions=()=>[]; gc.processContextMenu=()=>{}; gc.allow_interaction=true;
   window.__zd={graph,gc,cv};
-  window.addEventListener('resize',()=>{const w=document.getElementById('flow_wrap');if(!w)return;cv.width=Math.max(320,w.clientWidth);cv.height=440;gc.resize(cv.width,cv.height);fitFlow();});
+  let _rt=null; window.addEventListener('resize',()=>{clearTimeout(_rt);_rt=setTimeout(()=>{if(document.getElementById('tab_flow').className==='cur')renderFlow();},250);});   // 폭이 바뀌면 배치(가로/세로)부터 다시 정한다
  }
  const {graph,gc}=window.__zd;
  const wrapW=(document.getElementById('flow_wrap')||{}).clientWidth||0; if(!wrapW)return;   // 탭이 숨겨져 있으면 폭을 알 수 없다 → 탭을 열 때(showTab) 다시 그린다
