@@ -192,8 +192,10 @@ function renderTodo(){
  nb.className='n'+((news.length+acts.length)?'':' zero');
  document.getElementById('orders_h').textContent=`처리할 주문 ${news.length}건 (쿠팡 ${cpN.length} · 스스 ${ssN.length})`+(dones.length?` · 발송완료 ${dones.length}건`:'');
  const FEE={'쿠팡':0.8845,'스스':0.933};   // 게이트.py 와 동일 (수수료 후 실수령 비율)
- const lossNote=o=>{const f=o.결제실패||{};if(!f.결제액||!f.판매가)return '';const net=Math.round(f.판매가*(FEE[o.마켓]||0.9));const loss=f.결제액-net;
-  return `<br>손실 추정 <b>${원(loss)}</b> (무신사 ${원(f.결제액)} − 마켓 실수령 ${원(net)}) · 권고: 1만원 이하면 이행(취소는 점수·페널티 비용), 초과면 사장님 판단`;};
+ const lossNote=o=>{const f=o.결제실패||{};if(!f.결제액||!f.판매가)return '';const net=Math.round(f.판매가*(FEE[o.마켓]||0.9));
+  return `<br>무신사 결제액 ${원(f.결제액)} vs 마켓 실수령 ${원(net)} — 판매가 2배 초과 이상치라 멈춤(수량·상품 오류 의심). 무신사 장바구니 확인 후 다시 승인`;};
+ const lossPreview=o=>{const net=Math.round((o.판매가||0)*(FEE[o.마켓]||0.9));if(!o.원가||!net||o.원가<=net)return '';
+  return `<div style="font-size:12px;color:var(--amber);margin-bottom:6px">⚠ 장부 원가 기준 손실 예상 <b>${원(o.원가-net)}</b> (원가 ${원(o.원가)} > 실수령 ${원(net)}) — 우리 가격 관리 문제, 손해 감수하고 이행(9/4 결정). 결제 후 원인 점검</div>`;};
  const card=o=>{
   const st=o.상태||'신규';
   const isNew=st==='신규', isCart=st==='장바구니', isOrdered=st==='발주완료', isDone=st.startsWith('발송완료'); const isCancelWait=st==='취소대기'; const isBlocked=st==='이행불가';
@@ -213,10 +215,9 @@ function renderTodo(){
    </div>`}
   else if(isCart){const c=o.장바구니||{};actions=`<div class=act>
     <div style="font-size:12px;color:var(--dim);margin-bottom:6px">장바구니 담김 ${esc(c.시각||'')} · 옵션 <b>${esc(c.옵션||o.옵션||'')}</b> · 예상 결제 <b>${원(o.원가)}</b> · 배송지 ${esc(o.수령인)} ${esc(o.주소)}</div>
+    ${lossPreview(o)}
     ${o.결제실패?`<div style="font-size:12px;color:var(--red);margin-bottom:6px">⚠ 결제 중단: ${esc(o.결제실패.사유||'')} (${esc(o.결제실패.시각||'')})${lossNote(o)}</div>`:''}
     <button class=ship onclick="pay('${o.productOrderId}')">💳 결제 승인 — 무신사 결제 실행</button>
-    ${o.결제실패&&o.마켓==='쿠팡'?`<button class=mark onclick="cancelOrder('${o.productOrderId}','가격')">🚫 쿠팡에 주문 취소 요청 (가격 오류 CCPRER · 주문이행 점수 차감)</button>`:''}
-    ${o.결제실패&&o.마켓==='스스'?`<div style="font-size:12px;color:var(--dim);margin-bottom:6px">스스 판매자 취소 사유는 '품절'만 존재(페널티 2점) — 원가 급등은 이행 권고, 불가피하면 스마트스토어센터에서 사장님이 직접</div>`:''}
     <button class=mark onclick="mark('${o.productOrderId}','발주완료')">✔ 직접 결제함 — 표시만</button>
    </div>`}
   else if(isBlocked){const b=o.이행불가||{};const sold=/품절/.test(b.사유||'');actions=`<div class=act>
