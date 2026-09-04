@@ -14,8 +14,8 @@ h2:first-child{margin-top:6px}
 .badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700}
 .badge.on{background:#12331f;color:var(--green)} .badge.off{background:#3a1519;color:var(--red)}
 /* ── 탭 ── */
-.tabs{position:sticky;top:0;z-index:5;display:flex;gap:6px;background:var(--bg);padding:8px 0 10px;border-bottom:1px solid var(--line);margin-bottom:6px;overflow-x:auto}
-.tabs button{flex:1;min-width:110px;background:#171a21;border:1px solid var(--line);color:var(--dim);padding:11px 10px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.tabs{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:6px;background:var(--bg);padding:8px 0 10px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.tabs button{flex:1 1 30%;min-width:96px;background:#171a21;border:1px solid var(--line);color:var(--dim);padding:11px 10px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
 .tabs button.cur{background:#0d2b4d;border-color:#1f4c86;color:#cfe3ff}
 .tabs .n{display:inline-block;min-width:20px;padding:1px 7px;margin-left:6px;border-radius:10px;background:var(--red);color:#fff;font-size:11.5px}
 .tabs .n.zero{background:#262b36;color:var(--dim)}
@@ -137,8 +137,8 @@ details summary{cursor:pointer;color:var(--dim);font-size:13px;margin:16px 0 8px
 </section>
 
 <section id=tab_flow>
- <div class=dim style="margin:8px 0 6px">파이프라인 한눈에 — 노드를 누르면 세부. 색: <span style="color:#3ecf8e">●</span>정상 <span style="color:var(--amber)">●</span>대기·주의 <span style="color:var(--red)">●</span>조치 <span style="color:var(--dim)">●</span>데이터 없음</div>
- <div style="overflow-x:auto;padding-bottom:6px"><svg id=flow width=1130 height=300 style="min-width:1130px;font-family:inherit"></svg></div>
+ <div class=dim style="margin:8px 0 6px">파이프라인 블루프린트 — 드래그로 이동, 휠로 확대. 노드를 누르면 세부. 제목색: <span style="color:#3ecf8e">■</span>정상 <span style="color:var(--amber)">■</span>대기·주의 <span style="color:var(--red)">■</span>조치 <span style="color:var(--dim)">■</span>데이터 없음</div>
+ <div id=flow_wrap style="border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0b0e13"><canvas id=flowcv style="display:block;width:100%;height:440px;touch-action:none"></canvas></div>
  <div id=flow_detail class=card style="margin-top:10px;font-size:13px;line-height:1.7"><span class=dim>노드를 누르면 오늘 숫자와 상태 근거가 여기 나옵니다.</span></div>
 </section>
 
@@ -160,6 +160,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:13px;margin:16px 0 8px
 
 <div id=toast></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/litegraph.js/0.7.18/build/litegraph.core.min.js"></script>
 <script>
 const 원=n=>n==null||n===''?'-':Number(n).toLocaleString('ko-KR')+'원';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -492,34 +493,34 @@ function flowNodes(P){
  ];
 }
 function renderFlow(){
- const P=D.pipeline; const svg=document.getElementById('flow'); if(!svg)return;
- while(svg.firstChild)svg.removeChild(svg.firstChild);
+ const P=D.pipeline, cv=document.getElementById('flowcv'); if(!cv)return;
+ if(!window.LiteGraph){document.getElementById('flow_detail').innerHTML='<span class=dim>그래프 라이브러리를 불러오지 못했습니다 (네트워크). 새로고침해 주세요.</span>';return;}
  if(!P||!P.nodes){document.getElementById('flow_detail').innerHTML='<span class=dim>파이프라인 데이터 없음 — 관리페이지 재기동 필요</span>';return;}
- const NS='http://www.w3.org/2000/svg';
- const el=(tag,attrs,text)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;return e;};
- const nodes=flowNodes(P); const W=150,Hh=78,GX=36,GY=60,X0=14,Y0=26;
- const pos=n=>({x:X0+n.col*(W+GX),y:Y0+n.row*(Hh+GY)});
+ const TITLE={green:'#1e6b48',yellow:'#7a5a12',red:'#7a2a33',grey:'#343a44'}, DOT={green:'#3ecf8e',yellow:'#ffb020',red:'#ff6b6b',grey:'#8b93a3'};
+ if(!window.__zd){
+  function ZdStage(){this.addInput('','flow');this.addOutput('','flow');this.size=[210,84];this.resizable=false;}
+  ZdStage.title='stage';
+  ZdStage.prototype.onDrawForeground=function(ctx){if(this.flags.collapsed)return;ctx.save();ctx.textAlign='left';ctx.font='bold 16px "Apple SD Gothic Neo",Pretendard,sans-serif';ctx.fillStyle='#e6e9ef';ctx.fillText(this.zdMain||'',14,34);ctx.font='11px "Apple SD Gothic Neo",Pretendard,sans-serif';ctx.fillStyle='#98a2b3';ctx.fillText(this.zdSub||'',14,58);ctx.restore();};
+  ZdStage.prototype.onSelected=function(){if(this.zdId)flowDetail(this.zdId);};
+  LiteGraph.registerNodeType('zd/stage',ZdStage);
+  LiteGraph.NODE_TITLE_HEIGHT=26;
+  const wrap=document.getElementById('flow_wrap'); cv.width=Math.max(320,wrap.clientWidth); cv.height=440;
+  const graph=new LGraph(); const gc=new LGraphCanvas(cv,graph);
+  gc.allow_searchbox=false; gc.allow_dragnodes=false; gc.allow_reconnect_links=false; gc.read_only=true; gc.links_render_mode=LiteGraph.SPLINE_LINK; gc.render_connection_arrows=true; gc.render_curved_connections=true; gc.show_info=false; gc.background_image=LGraphCanvas.DEFAULT_BACKGROUND_IMAGE||gc.background_image;
+  gc.getMenuOptions=()=>[]; gc.processContextMenu=()=>{}; gc.allow_interaction=true;
+  window.__zd={graph,gc,cv};
+  window.addEventListener('resize',()=>{const w=document.getElementById('flow_wrap');if(!w)return;cv.width=Math.max(320,w.clientWidth);cv.height=440;gc.resize(cv.width,cv.height);fitFlow();});
+ }
+ const {graph,gc}=window.__zd; graph.clear();
+ const nodes=flowNodes(P); const byId={};
  const N=P.nodes||{}, od=N.orders||{}, cd=N.cand||{}, gt=N.gate||{}, li=N.listing||{}, se=N.settle||{};
- const fg=getComputedStyle(document.body).color||'#e6e9ef', dim=getComputedStyle(document.body).getPropertyValue('--dim')||'#8b93a3', card=getComputedStyle(document.body).getPropertyValue('--card')||'#171a21';
- const colorOf=c=>({green:'#3ecf8e',yellow:getComputedStyle(document.body).getPropertyValue('--amber')||'#e0a63e',red:getComputedStyle(document.body).getPropertyValue('--red')||'#e06a7c',grey:dim})[c]||dim;
- const defs=el('defs',{}); const mk=el('marker',{id:'arr',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:8,markerHeight:8,orient:'auto'}); mk.appendChild(el('path',{d:'M0,0 L10,5 L0,10 z',fill:dim})); defs.appendChild(mk); svg.appendChild(defs);
- svg.appendChild(el('text',{x:X0,y:14,'font-size':11,fill:dim},'소싱 라인 — 스캔부터 감시까지 (매일 10:40 스캔 → 차수)'));
- svg.appendChild(el('text',{x:X0,y:Y0+Hh+GY-12,'font-size':11,fill:dim},'주문 라인 — 주문부터 회계까지 (5분 수집 · 승인 탭)'));
- const byId=Object.fromEntries(nodes.map(n=>[n.id,n]));
- const edges=[['scan','cand',cd.n?`${cd.n}종`:''],['cand','price',cd.kw?`${cd.kw} 검색어`:''],['price','gate',''],['gate','listing',gt.n?`GO ${gt.go}`:''],['listing','watch',`${(li.ss_on||0)+(li.cp_ok||0)} 리스팅`],
+ for(const n of nodes){const nd=LiteGraph.createNode('zd/stage'); nd.title=n.t; nd.zdMain=n.m; nd.zdSub=String(n.s).slice(0,36); nd.zdId=n.id; nd.color=TITLE[n.c]||TITLE.grey; nd.bgcolor='#161a21'; nd.boxcolor=DOT[n.c]||DOT.grey; nd.pos=[30+n.col*250,50+n.row*180]; graph.add(nd); byId[n.id]=nd;}
+ const edges=[['scan','cand',cd.n?`${cd.n}종`:''],['cand','price',cd.kw?`${cd.kw} 검색어`:''],['price','gate','앵커'],['gate','listing',gt.n?`GO ${gt.go}`:''],['listing','watch',`${(li.ss_on||0)+(li.cp_ok||0)} 리스팅`],
   ['orders','cart',`신규 ${od.new||0}`],['cart','pay',`대기 ${od.cart||0}`],['pay','ship',`발주 ${od.ordered||0}`],['ship','settle',`발송 ${od.shipped||0}`],['settle','whooing',`대기 ${se.whooing_pending||0}`]];
- for(const [a,b,label] of edges){const A=pos(byId[a]),B=pos(byId[b]);const x1=A.x+W,y=A.y+Hh/2,x2=B.x;
-  svg.appendChild(el('line',{x1:x1,y1:y,x2:x2-2,y2:y,stroke:dim,'stroke-width':1.5,'marker-end':'url(#arr)'}));
-  if(label)svg.appendChild(el('text',{x:(x1+x2)/2,y:y-6,'font-size':11,'text-anchor':'middle',fill:fg},label));}
- svg.appendChild(el('line',{x1:X0+W/2,y1:Y0+Hh,x2:X0+W/2,y2:Y0+Hh+GY-18,stroke:dim,'stroke-dasharray':'4 4'}));
- for(const n of nodes){const p=pos(n);const col=colorOf(n.c);const g=el('g',{style:'cursor:pointer'});g.addEventListener('click',()=>flowDetail(n.id));
-  g.appendChild(el('rect',{x:p.x,y:p.y,width:W,height:Hh,rx:10,fill:card,stroke:col,'stroke-width':2}));
-  g.appendChild(el('circle',{cx:p.x+12,cy:p.y+14,r:4,fill:col}));
-  g.appendChild(el('text',{x:p.x+22,y:p.y+18,'font-size':12,'font-weight':700,fill:fg},n.t));
-  g.appendChild(el('text',{x:p.x+12,y:p.y+42,'font-size':15,'font-weight':700,fill:fg},n.m));
-  g.appendChild(el('text',{x:p.x+12,y:p.y+62,'font-size':10.5,fill:dim},String(n.s).slice(0,30)));
-  svg.appendChild(g);}
+ for(const [a,b,label] of edges){byId[a].outputs[0].label=label||''; byId[a].connect(0,byId[b],0);}
+ fitFlow();
 }
+function fitFlow(){const z=window.__zd;if(!z)return;const {gc,cv}=z;const gw=30+6*250, gh=50+2*180+20;const s=Math.min(1,(cv.width-20)/gw,(cv.height-10)/gh);gc.ds.scale=s;gc.ds.offset=[10/s,10/s];gc.setDirty(true,true);}
 function flowDetail(id){
  const n=flowNodes(D.pipeline).find(x=>x.id===id); if(!n)return;
  const rows=Object.entries(n.d||{}).map(([k,v])=>`<div><span class=dim>${esc(k)}</span> ${esc(typeof v==='object'?JSON.stringify(v):String(v))}</div>`).join('');
