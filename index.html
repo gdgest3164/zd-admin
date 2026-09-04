@@ -514,13 +514,14 @@ function renderFlow(){
  const {graph,gc}=window.__zd; graph.clear();
  const nodes=flowNodes(P); const byId={};
  const N=P.nodes||{}, od=N.orders||{}, cd=N.cand||{}, gt=N.gate||{}, li=N.listing||{}, se=N.settle||{};
- for(const n of nodes){const nd=LiteGraph.createNode('zd/stage'); nd.title=n.t; nd.zdMain=n.m; nd.zdSub=String(n.s).slice(0,36); nd.zdId=n.id; nd.color=TITLE[n.c]||TITLE.grey; nd.bgcolor='#161a21'; nd.boxcolor=DOT[n.c]||DOT.grey; nd.pos=[30+n.col*250,50+n.row*180]; graph.add(nd); byId[n.id]=nd;}
+ const narrow=cv.width<700; window.__zd.narrow=narrow;   // 폰: 두 라인을 세로 2열로 세워 글자가 읽히는 배율 확보
+ for(const n of nodes){const nd=LiteGraph.createNode('zd/stage'); nd.title=n.t; nd.zdMain=n.m; nd.zdSub=String(n.s).slice(0,36); nd.zdId=n.id; nd.color=TITLE[n.c]||TITLE.grey; nd.bgcolor='#161a21'; nd.boxcolor=DOT[n.c]||DOT.grey; nd.pos=narrow?[20+n.row*240,40+n.col*120]:[30+n.col*250,50+n.row*180]; graph.add(nd); byId[n.id]=nd;}
  const edges=[['scan','cand',cd.n?`${cd.n}종`:''],['cand','price',cd.kw?`${cd.kw} 검색어`:''],['price','gate','앵커'],['gate','listing',gt.n?`GO ${gt.go}`:''],['listing','watch',`${(li.ss_on||0)+(li.cp_ok||0)} 리스팅`],
   ['orders','cart',`신규 ${od.new||0}`],['cart','pay',`대기 ${od.cart||0}`],['pay','ship',`발주 ${od.ordered||0}`],['ship','settle',`발송 ${od.shipped||0}`],['settle','whooing',`대기 ${se.whooing_pending||0}`]];
  for(const [a,b,label] of edges){byId[a].outputs[0].label=label||''; byId[a].connect(0,byId[b],0);}
  fitFlow();
 }
-function fitFlow(){const z=window.__zd;if(!z)return;const {gc,cv}=z;const gw=30+6*250, gh=50+2*180+20;const s=Math.min(1,(cv.width-20)/gw,(cv.height-10)/gh);gc.ds.scale=s;gc.ds.offset=[10/s,10/s];gc.setDirty(true,true);}
+function fitFlow(){const z=window.__zd;if(!z)return;const {gc,cv}=z;const narrow=!!z.narrow;const gw=narrow?20+2*240:30+6*250, gh=narrow?40+6*120+10:50+2*180+20;const targetH=narrow?720:440; if(cv.height!==targetH){cv.height=targetH;cv.style.height=targetH+'px';gc.resize(cv.width,cv.height);}const s=Math.min(1,(cv.width-16)/gw,(cv.height-10)/gh);gc.ds.scale=s;gc.ds.offset=[8/s,8/s];gc.setDirty(true,true);}
 function flowDetail(id){
  const n=flowNodes(D.pipeline).find(x=>x.id===id); if(!n)return;
  const rows=Object.entries(n.d||{}).map(([k,v])=>`<div><span class=dim>${esc(k)}</span> ${esc(typeof v==='object'?JSON.stringify(v):String(v))}</div>`).join('');
