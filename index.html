@@ -493,27 +493,32 @@ function flowNodes(P){
 }
 function renderFlow(){
  const P=D.pipeline; const svg=document.getElementById('flow'); if(!svg)return;
- if(!P||!P.nodes){svg.innerHTML='';document.getElementById('flow_detail').innerHTML='<span class=dim>파이프라인 데이터 없음 — 관리페이지 재기동 필요</span>';return;}
+ while(svg.firstChild)svg.removeChild(svg.firstChild);
+ if(!P||!P.nodes){document.getElementById('flow_detail').innerHTML='<span class=dim>파이프라인 데이터 없음 — 관리페이지 재기동 필요</span>';return;}
+ const NS='http://www.w3.org/2000/svg';
+ const el=(tag,attrs,text)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;return e;};
  const nodes=flowNodes(P); const W=150,Hh=78,GX=36,GY=60,X0=14,Y0=26;
  const pos=n=>({x:X0+n.col*(W+GX),y:Y0+n.row*(Hh+GY)});
- const N=P.nodes||{}, od=N.orders||{}, cd=N.cand||{}, pr=N.price||{}, gt=N.gate||{}, li=N.listing||{}, se=N.settle||{};
+ const N=P.nodes||{}, od=N.orders||{}, cd=N.cand||{}, gt=N.gate||{}, li=N.listing||{}, se=N.settle||{};
+ const fg=getComputedStyle(document.body).color||'#e6e9ef', dim=getComputedStyle(document.body).getPropertyValue('--dim')||'#8b93a3', card=getComputedStyle(document.body).getPropertyValue('--card')||'#171a21';
+ const colorOf=c=>({green:'#3ecf8e',yellow:getComputedStyle(document.body).getPropertyValue('--amber')||'#e0a63e',red:getComputedStyle(document.body).getPropertyValue('--red')||'#e06a7c',grey:dim})[c]||dim;
+ const defs=el('defs',{}); const mk=el('marker',{id:'arr',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:8,markerHeight:8,orient:'auto'}); mk.appendChild(el('path',{d:'M0,0 L10,5 L0,10 z',fill:dim})); defs.appendChild(mk); svg.appendChild(defs);
+ svg.appendChild(el('text',{x:X0,y:14,'font-size':11,fill:dim},'소싱 라인 — 스캔부터 감시까지 (매일 10:40 스캔 → 차수)'));
+ svg.appendChild(el('text',{x:X0,y:Y0+Hh+GY-12,'font-size':11,fill:dim},'주문 라인 — 주문부터 회계까지 (5분 수집 · 승인 탭)'));
+ const byId=Object.fromEntries(nodes.map(n=>[n.id,n]));
  const edges=[['scan','cand',cd.n?`${cd.n}종`:''],['cand','price',cd.kw?`${cd.kw} 검색어`:''],['price','gate',''],['gate','listing',gt.n?`GO ${gt.go}`:''],['listing','watch',`${(li.ss_on||0)+(li.cp_ok||0)} 리스팅`],
   ['orders','cart',`신규 ${od.new||0}`],['cart','pay',`대기 ${od.cart||0}`],['pay','ship',`발주 ${od.ordered||0}`],['ship','settle',`발송 ${od.shipped||0}`],['settle','whooing',`대기 ${se.whooing_pending||0}`]];
- let s=`<defs><marker id=arr viewBox="0 0 10 10" refX=9 refY=5 markerWidth=8 markerHeight=8 orient=auto><path d="M0,0 L10,5 L0,10 z" fill="var(--dim)"/></marker></defs>`;
- s+=`<text x=${X0} y=14 font-size=11 fill="var(--dim)">소싱 라인 — 스캔부터 감시까지 (매일 10:40 스캔 → 차수)</text>`;
- s+=`<text x=${X0} y=${Y0+Hh+GY-12} font-size=11 fill="var(--dim)">주문 라인 — 주문부터 회계까지 (5분 수집 · 승인 탭)</text>`;
- const byId=Object.fromEntries(nodes.map(n=>[n.id,n]));
  for(const [a,b,label] of edges){const A=pos(byId[a]),B=pos(byId[b]);const x1=A.x+W,y=A.y+Hh/2,x2=B.x;
-  s+=`<line x1=${x1} y1=${y} x2=${x2-2} y2=${y} stroke="var(--dim)" stroke-width=1.5 marker-end="url(#arr)"/>`;
-  if(label)s+=`<text x=${(x1+x2)/2} y=${y-6} font-size=11 text-anchor=middle fill="var(--fg,currentColor)">${esc(label)}</text>`;}
- s+=`<line x1=${X0+W/2} y1=${Y0+Hh} x2=${X0+W/2} y2=${Y0+Hh+GY-18} stroke="var(--dim)" stroke-dasharray="4 4"/>`;
- for(const n of nodes){const p=pos(n);const col=FLOW_C[n.c]||FLOW_C.grey;
-  s+=`<g style="cursor:pointer" onclick="flowDetail('${n.id}')"><rect x=${p.x} y=${p.y} width=${W} height=${Hh} rx=10 fill="var(--card,#141a20)" stroke="${col}" stroke-width=2/>`
-   +`<circle cx=${p.x+12} cy=${p.y+14} r=4 fill="${col}"/>`
-   +`<text x=${p.x+22} y=${p.y+18} font-size=12 font-weight=700 fill="var(--fg,currentColor)">${esc(n.t)}</text>`
-   +`<text x=${p.x+12} y=${p.y+42} font-size=15 font-weight=700 fill="var(--fg,currentColor)">${esc(n.m)}</text>`
-   +`<text x=${p.x+12} y=${p.y+62} font-size=10.5 fill="var(--dim)">${esc(String(n.s).slice(0,30))}</text></g>`;}
- svg.innerHTML=s;
+  svg.appendChild(el('line',{x1:x1,y1:y,x2:x2-2,y2:y,stroke:dim,'stroke-width':1.5,'marker-end':'url(#arr)'}));
+  if(label)svg.appendChild(el('text',{x:(x1+x2)/2,y:y-6,'font-size':11,'text-anchor':'middle',fill:fg},label));}
+ svg.appendChild(el('line',{x1:X0+W/2,y1:Y0+Hh,x2:X0+W/2,y2:Y0+Hh+GY-18,stroke:dim,'stroke-dasharray':'4 4'}));
+ for(const n of nodes){const p=pos(n);const col=colorOf(n.c);const g=el('g',{style:'cursor:pointer'});g.addEventListener('click',()=>flowDetail(n.id));
+  g.appendChild(el('rect',{x:p.x,y:p.y,width:W,height:Hh,rx:10,fill:card,stroke:col,'stroke-width':2}));
+  g.appendChild(el('circle',{cx:p.x+12,cy:p.y+14,r:4,fill:col}));
+  g.appendChild(el('text',{x:p.x+22,y:p.y+18,'font-size':12,'font-weight':700,fill:fg},n.t));
+  g.appendChild(el('text',{x:p.x+12,y:p.y+42,'font-size':15,'font-weight':700,fill:fg},n.m));
+  g.appendChild(el('text',{x:p.x+12,y:p.y+62,'font-size':10.5,fill:dim},String(n.s).slice(0,30)));
+  svg.appendChild(g);}
 }
 function flowDetail(id){
  const n=flowNodes(D.pipeline).find(x=>x.id===id); if(!n)return;
