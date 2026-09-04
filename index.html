@@ -217,7 +217,9 @@ function renderTodo(){
     <div style="font-size:12px;color:var(--dim);margin-bottom:6px">장바구니 담김 ${esc(c.시각||'')} · 옵션 <b>${esc(c.옵션||o.옵션||'')}</b> · 예상 결제 <b>${원(o.원가)}</b> · 배송지 ${esc(o.수령인)} ${esc(o.주소)}</div>
     ${lossPreview(o)}
     ${o.결제실패?`<div style="font-size:12px;color:var(--red);margin-bottom:6px">⚠ 결제 중단: ${esc(o.결제실패.사유||'')} (${esc(o.결제실패.시각||'')})${lossNote(o)}</div>`:''}
-    <button class=ship onclick="pay('${o.productOrderId}')">💳 결제 승인 — 무신사 결제 실행</button>
+    ${o.결제보류?`<div style="font-size:12px;color:var(--red);margin-bottom:6px">⏸ 결제 보류: 무신사 원가 <b>${원(o.결제보류.실시간원가)}</b> > 장부 ${원(o.결제보류.장부원가)} (${esc(o.결제보류.시각||'')}) — 세일 복귀를 10분마다 자동 확인, 복귀하면 알림${o.결제보류.최근확인?` · 최근 확인 ${esc(o.결제보류.최근확인)} ${원(o.결제보류.최근원가)}`:''}</div>`:''}
+    ${o.결제보류해제?`<div style="font-size:12px;color:#3ecf8e;margin-bottom:6px">✅ 원가 복귀 확인 ${esc(o.결제보류해제.시각||'')} (${원(o.결제보류해제.실시간원가)}) — 결제 승인 가능</div>`:''}
+    <button class=ship onclick="pay('${o.productOrderId}',${o.결제보류?'true':'false'})">${o.결제보류?'💳 지금 결제 (손해 감수 — 우리 잘못, 배송은 지킨다)':'💳 결제 승인 — 무신사 결제 실행'}</button>
     <button class=mark onclick="mark('${o.productOrderId}','발주완료')">✔ 직접 결제함 — 표시만</button>
    </div>`}
   else if(isBlocked){const b=o.이행불가||{};const sold=/품절/.test(b.사유||'');actions=`<div class=act>
@@ -451,7 +453,7 @@ function load(){
 function run(j){queueAct('run',{job:j})}
 function cancelOrder(pid,reason){if(!confirm('마켓에 판매자 취소를 요청합니다(고객 환불). 취소율에 반영되니 신중히. 진행할까요?'))return;queueAct('cancel_order',{productOrderId:pid,reason})}
 function cancelApprove(pid){if(!confirm('무신사 주문을 취소(환불)하고 마켓 취소를 승인합니다. 진행할까요?'))return;queueAct('cancel',{productOrderId:pid})}
-function pay(pid){if(!confirm('무신사에서 이 주문을 결제합니다. 진행할까요? (최대 2분)'))return;queueAct('pay',{productOrderId:pid})}
+function pay(pid,force){if(!confirm(force?'⚠ 무신사 원가가 장부보다 높은 상태입니다. 손해를 감수하고 지금 결제합니다. 진행할까요?':'무신사에서 이 주문을 결제합니다. 진행할까요? (최대 2분)'))return;queueAct('pay',{productOrderId:pid,force:!!force})}
 function mark(pid,st){queueAct('status',{productOrderId:pid,상태:st})}
 function ship(pid,mk){
  const dc=document.getElementById('dc_'+pid).value, tn=document.getElementById('tn_'+pid).value.trim();
