@@ -193,7 +193,7 @@ function renderTodo(){
  document.getElementById('orders_h').textContent=`처리할 주문 ${news.length}건 (쿠팡 ${cpN.length} · 스스 ${ssN.length})`+(dones.length?` · 발송완료 ${dones.length}건`:'');
  const card=o=>{
   const st=o.상태||'신규';
-  const isNew=st==='신규', isCart=st==='장바구니', isOrdered=st==='발주완료', isDone=st.startsWith('발송완료'); const isCancelWait=st==='취소대기';
+  const isNew=st==='신규', isCart=st==='장바구니', isOrdered=st==='발주완료', isDone=st.startsWith('발송완료'); const isCancelWait=st==='취소대기'; const isBlocked=st==='이행불가';
   const musinsa=o.무신사번호?`https://www.musinsa.com/products/${o.무신사번호}`:null;
   const p=o.손익||{};
   const full=`${o.수령인} ${o.연락처}\n${o.주소}\n${o.배송메모||''}`.trim();
@@ -210,8 +210,15 @@ function renderTodo(){
    </div>`}
   else if(isCart){const c=o.장바구니||{};actions=`<div class=act>
     <div style="font-size:12px;color:var(--dim);margin-bottom:6px">장바구니 담김 ${esc(c.시각||'')} · 옵션 <b>${esc(c.옵션||o.옵션||'')}</b> · 예상 결제 <b>${원(o.원가)}</b> · 배송지 ${esc(o.수령인)} ${esc(o.주소)}</div>
+    ${o.결제실패?`<div style="font-size:12px;color:var(--red);margin-bottom:6px">⚠ 결제 중단: ${esc(o.결제실패.사유||'')} (${esc(o.결제실패.시각||'')})</div>`:''}
     <button class=ship onclick="pay('${o.productOrderId}')">💳 결제 승인 — 무신사 결제 실행</button>
+    ${o.결제실패?`<button class=mark onclick="cancelOrder('${o.productOrderId}','가격')">🚫 마켓에 주문 취소 요청 (원가 급등)</button>`:''}
     <button class=mark onclick="mark('${o.productOrderId}','발주완료')">✔ 직접 결제함 — 표시만</button>
+   </div>`}
+  else if(isBlocked){const b=o.이행불가||{};actions=`<div class=act>
+    <div style="font-size:12px;color:var(--red);margin-bottom:6px">⛔ 무신사에서 담을 수 없음: ${esc(b.사유||'')} (${esc(b.시각||'')})</div>
+    <button class=ship onclick="cancelOrder('${o.productOrderId}','품절')">🚫 마켓에 주문 취소 요청 (재고 없음)</button>
+    <button class=mark onclick="mark('${o.productOrderId}','신규')">↻ 다시 담기 시도(신규로)</button>
    </div>`}
   else if(isCancelWait){const q=o.취소요청||{};actions=`<div class=act>
     <div style="font-size:12px;color:var(--amber);margin-bottom:6px">🛑 ${esc(q.출처||'')} 고객 취소 요청 ${esc(q.시각||'')} · 무신사 주문 ${esc(o.무신사주문번호||'')} 결제 ${원(o.실결제액)}</div>
@@ -433,6 +440,7 @@ function load(){
  }).catch(()=>{});
 }
 function run(j){queueAct('run',{job:j})}
+function cancelOrder(pid,reason){if(!confirm('마켓에 판매자 취소를 요청합니다(고객 환불). 취소율에 반영되니 신중히. 진행할까요?'))return;queueAct('cancel_order',{productOrderId:pid,reason})}
 function cancelApprove(pid){if(!confirm('무신사 주문을 취소(환불)하고 마켓 취소를 승인합니다. 진행할까요?'))return;queueAct('cancel',{productOrderId:pid})}
 function pay(pid){if(!confirm('무신사에서 이 주문을 결제합니다. 진행할까요? (최대 2분)'))return;queueAct('pay',{productOrderId:pid})}
 function mark(pid,st){queueAct('status',{productOrderId:pid,상태:st})}
