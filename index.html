@@ -112,6 +112,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:13px;margin:16px 0 8px
   <button id=mo_next onclick="moveMonth(-1)">▶</button>
   <span class=cnt id=mo_cnt></span>
  </div>
+ <div id=health style="margin:0 0 12px"></div>
  <div class=two id=money_ch></div>
  <div class="cards mt" id=money_etc></div>
  <h2>월별 추이 — 채널 분리</h2>
@@ -258,6 +259,14 @@ function renderTodo(){
 
 /* ── 💰 정산 ── */
 function renderMoney(){
+ // ── 아침 점검 (2026-09-04) ──
+ (function(){const H=D.health||{}; const el=document.getElementById('health'); if(!el)return;
+  if(!H.areas){el.innerHTML=`<div class=card><div class=lb>🩺 아침 점검</div><div class=sub>아직 점검 기록 없음 — <button onclick="run('health')">지금 점검</button></div></div>`;return;}
+  const ic={red:'🔴',yellow:'🟡',green:'🟢'}; const S=H.summary||{};
+  el.innerHTML=`<div class=card><div class=lb>🩺 아침 점검 · ${esc(H.ts||'')} (${esc(H.slot||'')}) <button onclick="run('health')" style="margin-left:8px">지금 점검</button></div>
+   <div class=v style="font-size:16px">${esc(S.line||'')}</div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px;margin-top:8px">${(H.areas||[]).map(a=>`<details ${a.status!=='green'?'open':''} style="border:1px solid var(--line,#334);border-radius:8px;padding:6px 10px"><summary style="cursor:pointer">${ic[a.status]} <b>${esc(a.name)}</b> <span style="color:var(--dim);font-size:12px">${a.items.filter(i=>i.status!=='green').length?a.items.filter(i=>i.status!=='green').length+'건 주의':'정상'}</span></summary>
+    ${a.items.map(i=>`<div style="font-size:12px;margin:4px 0;line-height:1.5">${ic[i.status]} <b>${esc(i.label)}</b> — ${esc(i.detail)}${i.action?` <span style="color:var(--amber)">→ ${esc(i.action)}</span>`:''}</div>`).join('')}</details>`).join('')}</div></div>`;})();
  const m=D.money, ms=m.months||[];
  if(!ms.length)return;
  moIdx=Math.min(moIdx,ms.length-1);
