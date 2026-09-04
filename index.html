@@ -191,6 +191,9 @@ function renderTodo(){
  nb.textContent=news.length+acts.length;
  nb.className='n'+((news.length+acts.length)?'':' zero');
  document.getElementById('orders_h').textContent=`처리할 주문 ${news.length}건 (쿠팡 ${cpN.length} · 스스 ${ssN.length})`+(dones.length?` · 발송완료 ${dones.length}건`:'');
+ const FEE={'쿠팡':0.8845,'스스':0.933};   // 게이트.py 와 동일 (수수료 후 실수령 비율)
+ const lossNote=o=>{const f=o.결제실패||{};if(!f.결제액||!f.판매가)return '';const net=Math.round(f.판매가*(FEE[o.마켓]||0.9));const loss=f.결제액-net;
+  return `<br>손실 추정 <b>${원(loss)}</b> (무신사 ${원(f.결제액)} − 마켓 실수령 ${원(net)}) · 권고: 1만원 이하면 이행(취소는 점수·페널티 비용), 초과면 사장님 판단`;};
  const card=o=>{
   const st=o.상태||'신규';
   const isNew=st==='신규', isCart=st==='장바구니', isOrdered=st==='발주완료', isDone=st.startsWith('발송완료'); const isCancelWait=st==='취소대기'; const isBlocked=st==='이행불가';
@@ -210,15 +213,19 @@ function renderTodo(){
    </div>`}
   else if(isCart){const c=o.장바구니||{};actions=`<div class=act>
     <div style="font-size:12px;color:var(--dim);margin-bottom:6px">장바구니 담김 ${esc(c.시각||'')} · 옵션 <b>${esc(c.옵션||o.옵션||'')}</b> · 예상 결제 <b>${원(o.원가)}</b> · 배송지 ${esc(o.수령인)} ${esc(o.주소)}</div>
-    ${o.결제실패?`<div style="font-size:12px;color:var(--red);margin-bottom:6px">⚠ 결제 중단: ${esc(o.결제실패.사유||'')} (${esc(o.결제실패.시각||'')})</div>`:''}
+    ${o.결제실패?`<div style="font-size:12px;color:var(--red);margin-bottom:6px">⚠ 결제 중단: ${esc(o.결제실패.사유||'')} (${esc(o.결제실패.시각||'')})${lossNote(o)}</div>`:''}
     <button class=ship onclick="pay('${o.productOrderId}')">💳 결제 승인 — 무신사 결제 실행</button>
-    ${o.결제실패?`<button class=mark onclick="cancelOrder('${o.productOrderId}','가격')">🚫 마켓에 주문 취소 요청 (원가 급등)</button>`:''}
+    ${o.결제실패&&o.마켓==='쿠팡'?`<button class=mark onclick="cancelOrder('${o.productOrderId}','가격')">🚫 쿠팡에 주문 취소 요청 (가격 오류 CCPRER · 주문이행 점수 차감)</button>`:''}
+    ${o.결제실패&&o.마켓==='스스'?`<div style="font-size:12px;color:var(--dim);margin-bottom:6px">스스 판매자 취소 사유는 '품절'만 존재(페널티 2점) — 원가 급등은 이행 권고, 불가피하면 스마트스토어센터에서 사장님이 직접</div>`:''}
     <button class=mark onclick="mark('${o.productOrderId}','발주완료')">✔ 직접 결제함 — 표시만</button>
    </div>`}
-  else if(isBlocked){const b=o.이행불가||{};actions=`<div class=act>
+  else if(isBlocked){const b=o.이행불가||{};const sold=/품절/.test(b.사유||'');actions=`<div class=act>
     <div style="font-size:12px;color:var(--red);margin-bottom:6px">⛔ 무신사에서 담을 수 없음: ${esc(b.사유||'')} (${esc(b.시각||'')})</div>
-    <button class=ship onclick="cancelOrder('${o.productOrderId}','품절')">🚫 마켓에 주문 취소 요청 (재고 없음)</button>
+    ${sold?`<button class=ship onclick="cancelOrder('${o.productOrderId}','품절')">🚫 마켓에 주문 취소 요청 (재고 없음)</button>`
+          :`<div style="font-size:12px;color:var(--amber);margin-bottom:6px">옵션 매칭 문제는 우리 쪽 원인 = 취소 사유 아님 → 무신사에서 옵션 확인 후 직접 발주${musinsa?` <a href="${musinsa}" target=_blank>무신사 상품 ↗</a>`:''}</div>`}
     <button class=mark onclick="mark('${o.productOrderId}','신규')">↻ 다시 담기 시도(신규로)</button>
+    <button class=mark onclick="mark('${o.productOrderId}','발주완료')">✔ 직접 발주함 — 발주완료로 표시</button>
+    ${sold?'':`<button class=mark onclick="cancelOrder('${o.productOrderId}','품절')">🚫 확인 결과 진짜 품절 → 취소 요청</button>`}
    </div>`}
   else if(isCancelWait){const q=o.취소요청||{};actions=`<div class=act>
     <div style="font-size:12px;color:var(--amber);margin-bottom:6px">🛑 ${esc(q.출처||'')} 고객 취소 요청 ${esc(q.시각||'')} · 무신사 주문 ${esc(o.무신사주문번호||'')} 결제 ${원(o.실결제액)}</div>
