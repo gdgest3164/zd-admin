@@ -175,6 +175,7 @@ function showTab(id){
   document.getElementById('tb_'+t).className=(t===id?'cur':'');
  }
  localStorage.setItem('zd_tab',id);
+ if(id==='flow'&&typeof renderFlow==='function'&&typeof D!=='undefined'&&D)renderFlow();
 }
 function moveMonth(dir){const ms=(D&&D.money.months)||[];moIdx=Math.min(ms.length-1,Math.max(0,moIdx+dir));renderMoney()}
 function setCh(c){prodCh=c;localStorage.setItem('zd_ch',c);renderProds()}
@@ -504,14 +505,17 @@ function renderFlow(){
   ZdStage.prototype.onSelected=function(){if(this.zdId)flowDetail(this.zdId);};
   LiteGraph.registerNodeType('zd/stage',ZdStage);
   LiteGraph.NODE_TITLE_HEIGHT=26;
-  const wrap=document.getElementById('flow_wrap'); cv.width=Math.max(320,wrap.clientWidth); cv.height=440;
+  const wrap=document.getElementById('flow_wrap'); cv.width=Math.max(320,wrap.clientWidth||1100); cv.height=440;
   const graph=new LGraph(); const gc=new LGraphCanvas(cv,graph);
   gc.allow_searchbox=false; gc.allow_dragnodes=false; gc.allow_reconnect_links=false; gc.read_only=true; gc.links_render_mode=LiteGraph.SPLINE_LINK; gc.render_connection_arrows=true; gc.render_curved_connections=true; gc.show_info=false; gc.background_image=LGraphCanvas.DEFAULT_BACKGROUND_IMAGE||gc.background_image;
   gc.getMenuOptions=()=>[]; gc.processContextMenu=()=>{}; gc.allow_interaction=true;
   window.__zd={graph,gc,cv};
   window.addEventListener('resize',()=>{const w=document.getElementById('flow_wrap');if(!w)return;cv.width=Math.max(320,w.clientWidth);cv.height=440;gc.resize(cv.width,cv.height);fitFlow();});
  }
- const {graph,gc}=window.__zd; graph.clear();
+ const {graph,gc}=window.__zd;
+ const wrapW=(document.getElementById('flow_wrap')||{}).clientWidth||0; if(!wrapW)return;   // 탭이 숨겨져 있으면 폭을 알 수 없다 → 탭을 열 때(showTab) 다시 그린다
+ if(cv.width!==Math.max(320,wrapW)){cv.width=Math.max(320,wrapW);gc.resize(cv.width,cv.height);}
+ graph.clear();
  const nodes=flowNodes(P); const byId={};
  const N=P.nodes||{}, od=N.orders||{}, cd=N.cand||{}, gt=N.gate||{}, li=N.listing||{}, se=N.settle||{};
  const narrow=cv.width<700; window.__zd.narrow=narrow;   // 폰: 두 라인을 세로 2열로 세워 글자가 읽히는 배율 확보
