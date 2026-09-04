@@ -247,6 +247,7 @@ function renderTodo(){
    <div class=top><span class=name><span class=tag style="background:${o.마켓==='쿠팡'?'#0d2b4d':'#12331f'};color:${o.마켓==='쿠팡'?'#9ec8ff':'#3ecf8e'};margin-right:8px">${esc(o.마켓||'스스')}</span>${esc(o.상품명)}</span><span class=price>${원(o.판매가)}</span></div>
    <div class=stamp>${esc(o.날짜)} · 옵션 <b>${esc(o.옵션)||'-'}</b>${isDone&&o.송장?` · ${esc(o.택배사||'')} ${esc(o.송장)}`:''}${o.발주확인&&!isDone?` · 무신사 재고 ${esc(o.발주확인)}`:''}</div>
    ${steps}
+   ${o.손실감수?`<div style="font-size:12px;color:var(--amber);margin:4px 0">⚠ 손해 감수 이행 — 손실 <b>${원(o.손실감수.손실)}</b> (무신사 결제 ${원(o.손실감수.결제액)} / 마켓 실수령 ${원(o.손실감수.실수령)}) · 원인 점검 대상</div>`:''}
    <div>${chip('받는분',o.수령인)}${chip('연락처',o.연락처)}${chip('주소',o.주소)}${chip('배송메모',o.배송메모)}
     <span class=chip onclick='copy(${JSON.stringify(full)},"전체 복사됨")'><span class=k>전체</span>한번에</span></div>
    <div class=profit>남는 돈: 결제 ${원(o.판매가)} − 매입 ${원(o.원가)} − 수수료 ${원(p.수수료)} − 부가세 ${원(p.부가세)} = <b>${원(p.내손에)}</b></div>
