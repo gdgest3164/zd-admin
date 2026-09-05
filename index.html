@@ -273,7 +273,7 @@ function renderTodo(){
  const auto=all.filter(a=>a.처리==='자동'), info=all.filter(a=>a.처리==='정보');
  let html='';
  if(acts.length){
-  html+=acts.map(a=>`<div class=alert><b>[${esc(a.kind)}${a.처리==='실패'?' · 자동처리 실패':''}]</b> ${esc(a.name)} <span class=dim>(${esc(a.no)})</span><br>${esc(a.msg)}</div>`).join('');
+  html+=acts.map(a=>`<div class=alert><b>[${esc(a.kind)}${a.처리==='실패'?' · 자동처리 실패':''}]</b> ${esc(a.name)} <span class=dim>(${esc(a.no)})</span><br>${esc(a.msg)}${a.승인가능==='musinsa_return'?`<div style="margin-top:8px"><button class=ship onclick="returnApprove('${esc(a.no)}')">↩ 무신사 반품 신청 승인 — 수거요청(한진이 고객 집에서 수거) · 이후 회수송장·환불은 자동</button></div>`:''}${a.승인가능==='coupang_complete'?`<div style="margin-top:8px"><button class=ship onclick="returnComplete('${esc(a.no)}')">✅ 쿠팡 반품완료 승인 — 입고확인+승인(고객 환불)</button></div>`:''}</div>`).join('');
  }else{
   html+='<div class=okbox>✓ 내가 판단할 일 없음'+(auto.length?` — 품절 ${auto.length}건은 자동으로 스스 재고 0 처리됨`:'')+'</div>';
  }
@@ -462,6 +462,8 @@ function load(){
 function run(j){queueAct('run',{job:j})}
 function cancelOrder(pid,reason){if(!confirm('마켓에 판매자 취소를 요청합니다(고객 환불). 취소율에 반영되니 신중히. 진행할까요?'))return;queueAct('cancel_order',{productOrderId:pid,reason})}
 function cancelApprove(pid){if(!confirm('무신사 주문을 취소(환불)하고 마켓 취소를 승인합니다. 진행할까요?'))return;queueAct('cancel',{productOrderId:pid})}
+function returnApprove(rid){if(!confirm('무신사에 반품 신청(수거요청)을 넣습니다.\n한진 기사가 고객 집에서 수거해 무신사 안성센터로 보내고, 회수송장 쿠팡 등록·환불 확인은 자동입니다.\n반품비 약 6,000원은 우리 부담. 진행할까요? (최대 2분)'))return;queueAct('return_request',{receiptId:rid})}
+function returnComplete(rid){if(!confirm('쿠팡 반품을 완료 처리합니다 (입고확인+승인 → 고객 환불). 진행할까요?'))return;queueAct('return_complete',{receiptId:rid})}
 function pay(pid,force){if(!confirm(force?'⚠ 무신사 원가가 장부보다 높은 상태입니다. 손해를 감수하고 지금 결제합니다. 진행할까요?':'무신사에서 이 주문을 결제합니다. 진행할까요? (최대 2분)'))return;queueAct('pay',{productOrderId:pid,force:!!force})}
 function mark(pid,st){queueAct('status',{productOrderId:pid,상태:st})}
 function ship(pid,mk){
