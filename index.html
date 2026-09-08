@@ -149,7 +149,7 @@ pre{background:var(--pre);color:#C9D1DB;padding:12px;border-radius:9px;font-size
 
 <section id="tab_reg">
  <div class="grid" id="reg_kpi"></div>
- <h2>일별 신규 등록 <span class="src">매핑 스냅샷</span></h2><div class="kpi" id="reg_daily"></div>
+ <h2>최근 30일 등록 <span class="src">쿠팡 API · 스스 등록일</span></h2><div class="kpi" id="reg_daily"></div>
  <h2>오늘 차수</h2><div class="tw"><table id="rounds_t"></table></div>
  <h2>수집기</h2><div class="grid" id="reg_ext"></div>
 </section>
@@ -303,8 +303,16 @@ function renderReg(){
  const r=D.registration||{}, pct=r.target?Math.min(100,Math.round((r.cp_ok||0)/r.target*100)):0;
  const kp=(k,v,s,c,src)=>`<div class="kpi ${c||''}"><div class="k"><span>${k}</span>${src?`<span class="src">${src}</span>`:''}</div><div class="v num">${v}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
  document.getElementById('reg_kpi').innerHTML=kp('쿠팡 리스팅',`${N(r.cp_ok)} <span style="font-size:13px;color:var(--mut)">/ ${N(r.target)}</span>`,`<div class="bar"><i style="width:${pct}%"></i></div>${pct}% · 승인 대기 ${(r.cp_all||0)-(r.cp_ok||0)}`,'','쿠팡 매핑')+kp('오늘 신규',r.today_new==null?'-':'+'+r.today_new,'스냅샷 대비','ok')+kp('스스 리스팅',N(r.ss_all))+kp('남은 검색어',r.remaining_keywords==null?'-':r.remaining_keywords,r.remaining_keywords?'수집기가 처리 중':'대기 — 다음 슬롯에서 후보 생성',(r.remaining_keywords||0)>60?'warn':'');
- const dl=r.daily||[]; const mx=Math.max(1,...dl.map(x=>x.new||0));
- document.getElementById('reg_daily').innerHTML=dl.length?`<div class="bars">${dl.map(x=>`<div class="${x.partial?'part':''}" style="height:${Math.max(4,Math.round((x.new||0)/mx*56))}px"><span>${x.new}</span></div>`).join('')}</div><div class="bars-x">${dl.map(x=>`<div>${x.date.slice(5)}</div>`).join('')}</div><div class="note" style="margin-top:6px">연한 막대 = 오늘(진행 중). 스냅샷은 매일 아침 기록.</div>`:'<div class="note">스냅샷 2일 이상 쌓이면 표시됩니다</div>';
+ const dl=r.daily30||[]; const mx=Math.max(1,...dl.map(x=>(x.cp||0)+(x.ss||0)));
+ const sum=(arr,k)=>arr.reduce((a,x)=>a+(x[k]||0),0); const last7=dl.slice(-7), last30=dl;
+ const avg7=sum(last7,'cp')/7, need=Math.max(0,(r.target||1000)-(r.cp_ok||0)), daysLeft=avg7>0?Math.ceil(need/avg7):null;
+ document.getElementById('reg_daily').innerHTML=dl.length?`<div class="grid" style="margin-bottom:10px">
+   <div class="kpi"><div class="k">최근 7일 쿠팡</div><div class="v num">+${sum(last7,'cp')}</div><div class="s">하루 평균 ${avg7.toFixed(1)}개</div></div>
+   <div class="kpi"><div class="k">최근 30일 쿠팡</div><div class="v num">+${sum(last30,'cp')}</div><div class="s">스스 +${sum(last30,'ss')}</div></div>
+   <div class="kpi ${daysLeft&&daysLeft>21?'warn':''}"><div class="k">1,000까지</div><div class="v num">${daysLeft==null?'-':daysLeft+'일'}</div><div class="s">7일 평균 속도 기준 · 남은 ${N(need)}개</div></div></div>
+  <div class="bars">${dl.map(x=>{const t=(x.cp||0)+(x.ss||0);const h=Math.max(t?3:1,Math.round(t/mx*56));return `<div title="${x.date} 쿠팡 ${x.cp} · 스스 ${x.ss}" style="height:${h}px;background:linear-gradient(to top,var(--acc) ${t?Math.round((x.cp||0)/t*100):0}%,#3B5F9E ${t?Math.round((x.cp||0)/t*100):0}%)">${t?`<span>${t}</span>`:''}</div>`}).join('')}</div>
+  <div class="bars-x">${dl.map((x,i)=>`<div>${(i%5===4||i===dl.length-1)?x.date.slice(5):''}</div>`).join('')}</div>
+  <div class="note" style="margin-top:6px">막대 = 그날 등록 수(진한 파랑 쿠팡, 연한 파랑 스스). 쿠팡 등록일은 쿠팡 API createdAt, 스스는 등록일 실측.</div>`:'<div class="note">등록 이력 없음</div>';
  const rs=r.rounds||[];
  document.getElementById('rounds_t').innerHTML=`<tr><th>차수</th><th class="r">후보</th><th class="r">GO</th><th class="r">등록</th><th>판정 시각</th></tr>`+(rs.length?rs.map(x=>`<tr><td>${x.round}차</td><td class="r num">${x.cand}</td><td class="r num">${x.go}</td><td class="r num ${x.registered<x.go?'neg':''}">${x.registered}</td><td>${x.at}</td></tr>`).join('')+`<tr><td><b>합계</b></td><td class="r num">${rs.reduce((a,x)=>a+x.cand,0)}</td><td class="r num">${rs.reduce((a,x)=>a+x.go,0)}</td><td class="r num">${rs.reduce((a,x)=>a+x.registered,0)}</td><td></td></tr>`:'<tr><td colspan="5" class="note">오늘 판정된 차수 없음</td></tr>');
  const v=D.vitals||{};
