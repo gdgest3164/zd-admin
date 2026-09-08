@@ -132,6 +132,11 @@ pre{background:var(--pre);color:#C9D1DB;padding:12px;border-radius:9px;font-size
 </section>
 
 <section id="tab_money">
+ <h2>최근 30일 추이 <span class="src">주문 실측 · 반품 실측</span></h2>
+ <div class="grid" id="series_kpi" style="margin-bottom:8px"></div>
+ <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 주문 수</span><span class="src">주문목록</span></div><div id="ch_orders"></div></div>
+ <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 세전 순이익 (반품 손실은 반품일에 반영)</span><span class="src">주문·반품</span></div><div id="ch_profit"></div></div>
+ <div class="kpi"><div class="k"><span>누적 순이익 — 실선 판매만 · 점선 광고비 차감</span><span class="src">주문·반품·후잉</span></div><div id="ch_cum"></div></div>
  <h2>현금 <span class="src">정산 API · 후잉</span></h2><div class="grid" id="cash"></div>
  <h2>주문별 손익 <span class="src">주문 실측</span> <span class="src est">수수료 추정 = 정산 인식 전</span></h2><div class="tw"><table id="orders_t"></table></div>
  <h2>월 손익 <span class="src">쇼핑만 · 도구비 제외</span></h2><div class="tw"><table id="pnl_t"></table></div>
@@ -320,7 +325,37 @@ function renderReg(){
  document.getElementById('reg_ext').innerHTML=kp('수집기 마지막 신호',age(v.ext_age),`${esc(r.ext_event||'')} · 오늘 ${N(r.ext_loads_today)}페이지`,(v.ext_age||0)>3600?'bad':(v.ext_age||0)>900?'warn':'ok','확장 보고')+kp('후보 슬롯','07:10 · 11:05 · 15:05 · 19:05','놓친 슬롯은 다음 슬롯 전까지 자동 따라잡음')+kp('후잉 기록 대기',v.whooing_pending??'-',v.whooing_pending?'2시간마다 예약 작업이 기록':'모두 기록됨',v.whooing_pending?'warn':'ok','후잉 큐');
 }
 
-function render(d){D=d;renderVitals();renderToday();renderMoney();renderProds();renderReg();
+/* ── 추이 차트 (SVG, 라이브러리 없음) ── */
+function svgChart(el,rows,opt){
+ const W=Math.max(320,el.clientWidth||640),H=opt.h||120,L=44,R=8,T=14,B=22,iw=W-L-R,ih=H-T-B;
+ const vals=opt.series.flatMap(s=>rows.map(r=>r[s.k]||0)); let mx=Math.max(1,...vals.map(v=>Math.abs(v))); if(opt.zero)mx=Math.max(mx,1);
+ const min=opt.signed?-mx:0, max=mx; const y=v=>T+ih-((v-min)/(max-min))*ih; const n=rows.length, bw=iw/n;
+ const fmt=v=>opt.money?(Math.abs(v)>=10000?Math.round(v/1000)+'천':v):v;
+ let g=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;overflow:visible">`;
+ for(const t of [max,(max+min)/2,min]){const yy=y(t);g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="#262C35"/><text x="${L-6}" y="${yy+4}" text-anchor="end" font-size="10" fill="#98A2B3">${fmt(Math.round(t))}</text>`}
+ if(opt.signed)g+=`<line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="#98A2B3" stroke-width="1"/>`;
+ for(const s of opt.series){
+  if(s.type==='line'){const pts=rows.map((r,i)=>`${(L+bw*i+bw/2).toFixed(1)},${y(r[s.k]||0).toFixed(1)}`).join(' ');g+=`<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2" ${s.dash?'stroke-dasharray="5 4"':''}/>`;
+   const last=rows[n-1];g+=`<circle cx="${L+bw*(n-1)+bw/2}" cy="${y(last[s.k]||0)}" r="3.5" fill="${s.color}"/><text x="${L+bw*(n-1)+bw/2-6}" y="${y(last[s.k]||0)-8}" text-anchor="end" font-size="11" font-weight="700" fill="${s.color}">${(last[s.k]||0).toLocaleString('ko-KR')}</text>`}
+  else{rows.forEach((r,i)=>{const v=r[s.k]||0;if(!v)return;const x=L+bw*i+bw*0.2,w=bw*0.6,y0=y(0),y1=y(v);const col=s.neg&&v<0?s.neg:s.color;
+   g+=`<rect x="${x.toFixed(1)}" y="${Math.min(y0,y1).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(2,Math.abs(y0-y1)).toFixed(1)}" rx="2" fill="${col}"><title>${r.date} ${v.toLocaleString('ko-KR')}</title></rect>`;
+   if(s.label)g+=`<text x="${(x+w/2).toFixed(1)}" y="${(v>0?y1-4:y1+11).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="#98A2B3">${fmt(v)}</text>`})}
+ }
+ rows.forEach((r,i)=>{if(i%5===4||i===n-1)g+=`<text x="${(L+bw*i+bw/2).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="10" fill="#98A2B3">${r.date.slice(5)}</text>`});
+ el.innerHTML=g+'</svg>';
+}
+function renderSeries(){
+ const S=D.series||{}; const rows=S.rows||[]; if(!rows.length)return;
+ const kp=(k,v,s,c)=>`<div class="kpi ${c||''}"><div class="k">${k}</div><div class="v num">${v}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
+ const last7=rows.slice(-7), prev7=rows.slice(-14,-7), sum=(a,k)=>a.reduce((x,r)=>x+(r[k]||0),0);
+ document.getElementById('series_kpi').innerHTML=kp('30일 주문',S.orders_total,`최근 7일 ${sum(last7,'orders')} · 전주 ${sum(prev7,'orders')} · 반품 ${S.returns_total}`)
+  +kp('30일 세전 순이익',원(S.profit_total),'판매 − 원가 − 수수료 − 부가세 − 반품 손실',S.profit_total<0?'bad':'ok')
+  +kp('광고비 차감 순이익',원(S.net_total),`광고·이벤트 ${원(S.marketing_total)} 차감 (9/10부터 0)`,S.net_total<0?'bad':'ok');
+ svgChart(document.getElementById('ch_orders'),rows,{h:110,series:[{k:'orders',color:'#6EA8FF',label:true}]});
+ svgChart(document.getElementById('ch_profit'),rows,{h:130,signed:true,money:true,series:[{k:'profit',color:'#4ADE80',neg:'#FF7B72',label:true}]});
+ svgChart(document.getElementById('ch_cum'),rows,{h:130,signed:true,money:true,series:[{k:'cum_profit',type:'line',color:'#4ADE80'},{k:'cum_net',type:'line',color:'#FFC24D',dash:true}]});
+}
+function render(d){D=d;renderVitals();renderToday();renderMoney();renderSeries();renderProds();renderReg();
  document.getElementById('sync').textContent=`데이터 ${(d.vitals||{}).generated_at||''}`}
 
 /* ── 액션 (폰: Supabase 큐 → 액션폴러 / 로컬: 큐 없음 → 안내) ── */
