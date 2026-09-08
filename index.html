@@ -15,16 +15,16 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stro
 .hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .hd h1{font-size:17px;margin:0;font-weight:800;letter-spacing:-.2px}
 .hd .sync{font-size:12px;color:var(--mut)}
-.hd button{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px;color:var(--tx);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.hd button{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:40px;font-size:12.5px;color:var(--tx);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 .vitals{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
 .vt{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 9px;display:flex;align-items:center;gap:7px;min-width:0}
 .vt .k{font-size:11px;color:var(--mut);white-space:nowrap}
 .vt .v{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .vt.ok{border-color:#1F5C38}.vt.ok svg{color:var(--ok)}.vt.warn{border-color:#6B4E14;background:var(--warn-bg)}.vt.warn svg{color:var(--warn)}.vt.bad{border-color:#7A2A33;background:var(--bad-bg)}.vt.bad svg{color:var(--bad)}
 .tabs{display:flex;gap:4px;margin-top:8px}
-.tabs button{flex:1;background:transparent;border:1px solid transparent;border-radius:8px;padding:9px 6px;font-size:13.5px;font-weight:700;color:var(--mut);cursor:pointer}
+.tabs button{flex:1;min-height:44px;background:transparent;border:1px solid transparent;border-radius:8px;padding:9px 6px;font-size:13.5px;font-weight:700;color:var(--mut);cursor:pointer}
 .tabs button.cur{background:var(--card);border-color:var(--line);color:var(--tx)}
-.tabs button .b{display:inline-block;min-width:18px;padding:0 6px;margin-left:5px;border-radius:9px;background:var(--bad);color:#fff;font-size:11px;line-height:18px}
+.tabs button .b{display:inline-block;min-width:18px;padding:0 6px;margin-left:5px;border-radius:9px;background:var(--bad);color:#1A0A0A;font-size:11px;font-weight:800;line-height:18px}
 section{display:none;padding-top:12px}section.cur{display:block}
 h2{font-size:13px;color:var(--mut);font-weight:700;margin:18px 0 8px;letter-spacing:.2px;text-transform:none}
 h2:first-child{margin-top:4px}
@@ -54,13 +54,13 @@ h2 .src{font-weight:500;margin-left:6px}
 .steps{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0 2px;font-size:11.5px}
 .step{padding:2px 8px;border-radius:6px;background:var(--th);color:var(--mut)}.step.cur{background:var(--acc-bg);color:var(--acc);font-weight:700}.step.done{background:var(--ok-bg);color:var(--ok)}
 .act{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:10px}
-.act button,.act a{background:var(--card);border:1px solid var(--line);color:var(--tx);padding:9px 13px;border-radius:8px;font-size:13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.act button,.act a{background:var(--card);border:1px solid var(--line);color:var(--tx);padding:10px 14px;min-height:44px;border-radius:8px;font-size:13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
 .act button.pri{background:var(--acc);border-color:var(--acc);color:#0B1220;font-weight:700}
-.act button.danger{background:var(--bad);border-color:var(--bad);color:#fff;font-weight:700}
-.act select,.act input{border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:13px;background:var(--pre);color:var(--tx)}
+.act button.danger{background:var(--bad);border-color:var(--bad);color:#1A0A0A;font-weight:700}
+.act select,.act input{border:1px solid var(--line);border-radius:8px;padding:10px 10px;min-height:44px;font-size:13px;background:var(--pre);color:var(--tx)}
 .act input{width:170px}
 .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
-.chip{background:var(--th);border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12px;cursor:pointer;max-width:100%}
+.chip{background:var(--th);border:1px solid var(--line);border-radius:7px;padding:8px 10px;min-height:36px;font-size:12px;cursor:pointer;max-width:100%;display:inline-flex;align-items:center}
 .chip .k{color:var(--mut);margin-right:5px;font-size:11px}
 .note{font-size:12px;color:var(--mut);line-height:1.55}
 .note.warn{color:var(--warn)}.note.bad{color:var(--bad)}
@@ -76,18 +76,19 @@ td.neg{color:var(--bad);font-weight:700}td.pos{color:var(--ok);font-weight:700}
 .bar i{display:block;height:100%;background:var(--acc)}
 .bars{display:flex;align-items:flex-end;gap:4px;height:64px;margin-top:8px}
 .bars div{flex:1;background:var(--acc);border-radius:3px 3px 0 0;position:relative;min-width:10px}
-.bars div.part{background:#3B5F9E}
+.bars div.part{background:#5B84C8}
 .bars div span{position:absolute;top:-16px;left:0;right:0;text-align:center;font-size:10.5px;color:var(--mut)}
 .bars-x{display:flex;gap:4px;font-size:10px;color:var(--mut);margin-top:3px}.bars-x div{flex:1;text-align:center;min-width:10px}
 details{margin-top:10px}summary{cursor:pointer;color:var(--mut);font-size:13px;font-weight:600;padding:6px 0}
 pre{background:var(--pre);color:#C9D1DB;padding:12px;border-radius:9px;font-size:11px;overflow:auto;max-height:320px;line-height:1.45}
 .filters{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
-.filters button{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:12.5px;color:var(--mut);cursor:pointer;font-weight:600}
+.filters button{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 14px;min-height:44px;font-size:12.5px;color:var(--mut);cursor:pointer;font-weight:600}
 .filters button.cur{background:var(--tx);color:#0F1216;border-color:var(--tx)}
-.filters input{flex:1;min-width:140px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--pre);color:var(--tx)}
+.filters input{flex:1;min-width:140px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-height:44px;font-size:13px;background:var(--pre);color:var(--tx)}
 #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#E8ECF1;color:#0F1216;padding:10px 16px;border-radius:9px;display:none;font-size:13px;z-index:9}
 .empty{background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:14px;color:var(--mut);font-size:13px;text-align:center}
 @media(max-width:640px){.vitals{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:repeat(2,1fr)}.kpi .v{font-size:19px}
+ .top{position:static;border-bottom:0}.tabs{position:fixed;left:0;right:0;bottom:0;z-index:7;margin:0;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);gap:6px}.tabs button{min-height:48px;font-size:13.5px}.wrap{padding-bottom:96px}
  .hd h1{font-size:16px;white-space:nowrap}.hd .sync{font-size:11px;white-space:nowrap}.hd button span{display:none}.hd button{padding:7px 8px}
  .tabs button{font-size:13px;padding:8px 4px}.dc .name{font-size:13.5px}th,td{padding:7px 8px}}
 </style></head><body>
@@ -307,7 +308,7 @@ function renderReg(){
  const sum=(arr,k)=>arr.reduce((a,x)=>a+(x[k]||0),0); const last7=dl.slice(-7), last30=dl;
  const avg7=sum(last7,'cp')/7, need=Math.max(0,(r.target||1000)-(r.cp_ok||0)), daysLeft=avg7>0?Math.ceil(need/avg7):null;
  document.getElementById('reg_daily').innerHTML=dl.length?`<div class="grid" style="margin-bottom:10px">
-   <div class="kpi"><div class="k">최근 7일 쿠팡</div><div class="v num">+${sum(last7,'cp')}</div><div class="s">하루 평균 ${avg7.toFixed(1)}개</div></div>
+   <div class="kpi"><div class="k">최근 7일 쿠팡</div><div class="v num">+${sum(last7,'cp')}</div><div class="s">하루 평균 ${avg7.toFixed(1)}개 · 전주 ${(()=>{const p=sum(dl.slice(-14,-7),'cp'),c=sum(last7,'cp');return p?`${c>=p?'▲':'▼'}${Math.abs(c-p)}`:'-'})()}</div></div>
    <div class="kpi"><div class="k">최근 30일 쿠팡</div><div class="v num">+${sum(last30,'cp')}</div><div class="s">스스 +${sum(last30,'ss')}</div></div>
    <div class="kpi ${daysLeft&&daysLeft>21?'warn':''}"><div class="k">1,000까지</div><div class="v num">${daysLeft==null?'-':daysLeft+'일'}</div><div class="s">7일 평균 속도 기준 · 남은 ${N(need)}개</div></div></div>
   <div class="bars">${dl.map(x=>{const t=(x.cp||0)+(x.ss||0);const h=Math.max(t?3:1,Math.round(t/mx*56));return `<div title="${x.date} 쿠팡 ${x.cp} · 스스 ${x.ss}" style="height:${h}px;background:linear-gradient(to top,var(--acc) ${t?Math.round((x.cp||0)/t*100):0}%,#3B5F9E ${t?Math.round((x.cp||0)/t*100):0}%)">${t?`<span>${t}</span>`:''}</div>`}).join('')}</div>
