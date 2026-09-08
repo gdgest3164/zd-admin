@@ -283,12 +283,12 @@ function renderMoney(){
  document.getElementById('orders_t').innerHTML=`<tr><th>날짜</th><th>마켓</th><th>상품</th><th class="r">판매가</th><th class="r">실결제</th><th class="r">수수료</th><th class="r">세전</th><th>상태</th></tr>`+
   O.map(o=>{const p=o.손익||{};const ret=retBy[String(o.주문번호)];const fee=o.실수수료||p.수수료;const net=ret?-(ret.반품손실||0):p.내손에;
    return `<tr><td>${esc(String(o.날짜).slice(5))}</td><td><span class="tag ${o.마켓==='쿠팡'?'cp':'ss'}">${esc(o.마켓||'스스')}</span></td><td style="white-space:normal;min-width:160px">${esc(strip(o.상품명).slice(0,40))}<div class="note">${esc(o.옵션||'')}</div></td><td class="r num">${원(o.판매가)}</td><td class="r num">${ret?`${원(o.실결제액||o.원가)}<div class="note">환불 ${원(ret.무신사환불)}</div>`:원(o.실결제액||o.원가)}</td><td class="r num">${ret?'-':`${원(fee)} ${o.실수수료?'':'<span class="src est">추정</span>'}`}</td><td class="r num ${net<0?'neg':'pos'}">${ret?(net?'-'+원(-net):'0원'):원(net)}${ret?'<div class="note">반품비</div>':''}</td><td>${ret?`<span class="tag bad">반품 · ${esc(ret.귀책||'')} 귀책</span>`:`<span class="tag ${String(o.상태).startsWith('발송완료')?'ok':'warn'}">${esc(o.상태)}</span>`}</td></tr>`}).join('');
- const P=D.pnl||{}, pm=P.months||[];
+ const P=D.pnl_v2||{}, pm=P.months||[];
  const sgn=v=>`<td class="r num ${v<0?'neg':'pos'}">${(v<0?'-':'')+원(Math.abs(v||0))}</td>`;
- document.getElementById('pnl_t').innerHTML=`<tr><th>월</th><th class="r">유효 주문</th><th class="r">매출</th><th class="r">공헌이익</th><th class="r">건당</th><th class="r">마케팅비</th><th class="r">쇼핑 순이익</th></tr>`+
-  pm.map(x=>`<tr><td><b>${x.month}</b></td><td class="r num">${x.유효건}${x.반품?` <span class="tag bad">반품 ${x.반품}</span>`:''}</td><td class="r num">${원(x.유효매출)}</td><td class="r num">${원(x.공헌이익)}</td><td class="r num">${원(x.건당공헌)}</td><td class="r num">${x.마케팅비?'-'+원(x.마케팅비):'-'}</td>${sgn(x.쇼핑순이익)}</tr>`).join('')+
-  (P.total?`<tr><td><b>누적</b></td><td class="r num">${P.total.유효건}</td><td></td><td class="r num">${원(P.total.공헌이익)}</td><td class="r num">${원(P.total.건당공헌)}</td><td class="r num">-${원(P.total.마케팅비)}</td>${sgn(P.total.쇼핑순이익)}</tr>`:'');
- const Nn=P.north||{}; document.getElementById('pnl_note').textContent=Nn.목표_일건수?`북극성: 목표 일 ${Nn.목표_일건수}건 · 현재 일평균 ${Nn.현재_일평균}건 (운영 ${Nn.운영일수}일) · 리스팅 ${N(Nn.리스팅)}개 · 다음 세금 ${(D.money||{}).next_tax||''}`:'';
+ const row=(x,label)=>`<tr><td><b>${label}</b></td><td class="r num">${x.유효건}${x.반품?` <span class="tag bad">반품 ${x.반품}</span>`:''}</td><td class="r num">${원(x.유효매출)}</td><td class="r num">${원(x.세전)}</td><td class="r num">${원(x.부가세)}</td><td class="r num">${원(x.세후)}</td><td class="r num">${x.반품손실?'-'+원(x.반품손실):'-'}</td><td class="r num">${x.마케팅비?'-'+원(x.마케팅비):'-'}</td>${sgn(x.쇼핑순이익)}<td class="r num">${원(x.건당세후)}</td></tr>`;
+ document.getElementById('pnl_t').innerHTML=`<tr><th>월</th><th class="r">유효 주문</th><th class="r">유효 매출</th><th class="r">세전</th><th class="r">부가세</th><th class="r">세후</th><th class="r">반품 손실</th><th class="r">마케팅비</th><th class="r">쇼핑 순이익</th><th class="r">건당 세후</th></tr>`+
+  pm.map(x=>row(x,x.month)).join('')+(P.total?row(P.total,'누적'):'');
+ const Nn=(D.pnl||{}).north||{}; document.getElementById('pnl_note').textContent=`세전 = 판매가 − 실결제 − 수수료 · 부가세 = 세전÷11 · 쇼핑 순이익 = 세후 − 반품 손실 − 마케팅비${P.total&&P.total.수수료추정건?` · 수수료 추정 ${P.total.수수료추정건}건(쿠팡 정산 인식 전)`:''}`+(Nn.목표_일건수?` · 북극성: 목표 일 ${Nn.목표_일건수}건, 현재 일평균 ${Nn.현재_일평균}건`:'');
  const cur=(D.money||{}).month||new Date().toISOString().slice(0,7); const rt=((D.returns||{}).months||{})[cur]||{}; const rn=(rt.반품||0)+(rt.교환||0); const cnt=(D.money||{}).count||0;
  const vendorN=RR.filter(r=>String(r.날짜||'').startsWith(cur)&&r.귀책==='판매자').length;
  document.getElementById('returns').innerHTML=kp('이번 달 반품',`${rn}건`,`주문 ${cnt}건 중 · 반품률 ${cnt?Math.round(rn/cnt*100):0}% · 판매자 귀책 ${vendorN}`,rn?'warn':'ok')+kp('반품 손실',원(rt.반품손실||0),`무신사 반품비 − 고객부담 회수 ${원(rt.고객부담||0)} · 진행중 ${rt.진행중||0}`,(rt.반품손실||0)?'bad':'','반품 실측')+kp('환불된 판매액',원(rt.금액||0),'매출에서 제외');
@@ -402,7 +402,7 @@ function load(manual){
  }
 }
 /* ── 새 버전 자동 반영: 배포 뒤 폰이 옛 페이지를 캐시해 '그래프가 안 보이는' 문제 방지 (2026-09-08) ── */
-const VERSION='ZDV-'+'20260908-1510';
+const VERSION='ZDV-'+'20260908-1600';
 function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 showTab(localStorage.getItem('zd2_tab')||'today');
 load();setInterval(()=>{if(!paused)load()},60000);setTimeout(checkVersion,5000);setInterval(checkVersion,300000);
