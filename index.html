@@ -137,6 +137,10 @@ pre{background:var(--pre);color:#C9D1DB;padding:12px;border-radius:9px;font-size
  <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 주문 수</span><span class="src">주문목록</span></div><div id="ch_orders"></div></div>
  <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 세전 순이익 (반품 손실은 반품일에 반영)</span><span class="src">주문·반품</span></div><div id="ch_profit"></div></div>
  <div class="kpi"><div class="k"><span>누적 순이익 — 실선 판매만 · 점선 광고비 차감</span><span class="src">주문·반품·후잉</span></div><div id="ch_cum"></div></div>
+ <h2>전환 — 방문 · 장바구니 · 주문 <span class="src">쿠팡 WING 엑셀 (월요일 업로드)</span></h2>
+ <div class="grid" id="funnel_kpi" style="margin-bottom:8px"></div>
+ <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 방문자 (막대) · 장바구니 (짙은 막대) · 주문 (점)</span><span class="src" id="funnel_src"></span></div><div id="ch_funnel"></div></div>
+ <div class="kpi"><div class="k"><span>구매 전환율 % (주문 ÷ 방문자)</span><span class="src">WING</span></div><div id="ch_cvr"></div></div>
  <h2>현금 <span class="src">정산 API · 후잉</span></h2><div class="grid" id="cash"></div>
  <h2>주문별 손익 <span class="src">주문 실측</span> <span class="src est">수수료 추정 = 정산 인식 전</span></h2><div class="tw"><table id="orders_t"></table></div>
  <h2>월 손익 <span class="src">쇼핑만 · 도구비 제외</span></h2><div class="tw"><table id="pnl_t"></table></div>
@@ -355,7 +359,20 @@ function renderSeries(){
  svgChart(document.getElementById('ch_profit'),rows,{h:130,signed:true,money:true,series:[{k:'profit',color:'#4ADE80',neg:'#FF7B72',label:true}]});
  svgChart(document.getElementById('ch_cum'),rows,{h:130,signed:true,money:true,series:[{k:'cum_profit',type:'line',color:'#4ADE80'},{k:'cum_net',type:'line',color:'#FFC24D',dash:true}]});
 }
-function render(d){D=d;renderVitals();renderToday();renderMoney();renderSeries();renderProds();renderReg();
+function renderFunnel(){
+ const F=D.funnel||{}; const rows=F.rows||[]; const kpEl=document.getElementById('funnel_kpi'); if(!kpEl)return;
+ if(!rows.length){kpEl.innerHTML='<div class="empty">WING 판매분석 일별 엑셀이 없습니다 — 인사이트 폴더에 SELLER_INSIGHTS_DAILY_SUMMARY_METRICS_*.xlsx 를 넣으면 표시</div>';document.getElementById('ch_funnel').innerHTML='';document.getElementById('ch_cvr').innerHTML='';return}
+ const has=rows.filter(r=>r.visitors!=null); const sum=(a,k)=>a.reduce((x,r)=>x+(r[k]||0),0);
+ const v=sum(has,'visitors'),c=sum(has,'carts'),o=sum(has,'orders'); const last7=has.slice(-7);
+ const kp=(k,val,s,cl)=>`<div class="kpi ${cl||''}"><div class="k">${k}</div><div class="v num">${val}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
+ kpEl.innerHTML=kp('기간 방문자',N(v),`${has.length}일치 (${has[0]?.date.slice(5)}~${has[has.length-1]?.date.slice(5)})`)+kp('장바구니',N(c),`방문 대비 ${v?(c/v*100).toFixed(1):0}%`)+kp('주문',N(o),`장바구니 대비 ${c?(o/c*100).toFixed(0):0}%`)
+  +kp('구매 전환율',`${v?(o/v*100).toFixed(2):'0.00'}%`,`최근 7일 ${sum(last7,'visitors')?(sum(last7,'orders')/sum(last7,'visitors')*100).toFixed(2):'0.00'}% · 판정 기준 0.5%`,v&&o/v>=0.005?'ok':'warn');
+ document.getElementById('funnel_src').textContent=F.last_date?`마지막 데이터 ${F.last_date.slice(5)} · 없는 날은 빈칸`:'';
+ const rr=rows.map(r=>({...r,visitors:r.visitors||0,carts:r.carts||0,orders:r.orders||0,cvr:r.cvr==null?0:r.cvr}));
+ svgChart(document.getElementById('ch_funnel'),rr,{h:130,series:[{k:'visitors',color:'#3B5F9E'},{k:'carts',color:'#6EA8FF'},{k:'orders',type:'line',color:'#4ADE80'}]});
+ svgChart(document.getElementById('ch_cvr'),rr,{h:100,series:[{k:'cvr',type:'line',color:'#FFC24D'}]});
+}
+function render(d){D=d;renderVitals();renderToday();renderMoney();renderSeries();renderFunnel();renderProds();renderReg();
  document.getElementById('sync').textContent=`데이터 ${(d.vitals||{}).generated_at||''}`}
 
 /* ── 액션 (폰: Supabase 큐 → 액션폴러 / 로컬: 큐 없음 → 안내) ── */
@@ -384,6 +401,9 @@ function load(manual){
   fetch('/data'+(RKEY?'?key='+RKEY:'')).then(r=>r.json()).then(d=>{d._sync_age=null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'));
  }
 }
+/* ── 새 버전 자동 반영: 배포 뒤 폰이 옛 페이지를 캐시해 '그래프가 안 보이는' 문제 방지 (2026-09-08) ── */
+const VERSION='ZDV-'+'20260908-1510';
+function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 showTab(localStorage.getItem('zd2_tab')||'today');
-load();setInterval(()=>{if(!paused)load()},60000);
+load();setInterval(()=>{if(!paused)load()},60000);setTimeout(checkVersion,5000);setInterval(checkVersion,300000);
 </script></body></html>
