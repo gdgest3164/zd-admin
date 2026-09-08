@@ -311,7 +311,7 @@ function renderReg(){
    <div class="kpi"><div class="k">최근 7일 쿠팡</div><div class="v num">+${sum(last7,'cp')}</div><div class="s">하루 평균 ${avg7.toFixed(1)}개 · 전주 ${(()=>{const p=sum(dl.slice(-14,-7),'cp'),c=sum(last7,'cp');return p?`${c>=p?'▲':'▼'}${Math.abs(c-p)}`:'-'})()}</div></div>
    <div class="kpi"><div class="k">최근 30일 쿠팡</div><div class="v num">+${sum(last30,'cp')}</div><div class="s">스스 +${sum(last30,'ss')}</div></div>
    <div class="kpi ${daysLeft&&daysLeft>21?'warn':''}"><div class="k">1,000까지</div><div class="v num">${daysLeft==null?'-':daysLeft+'일'}</div><div class="s">7일 평균 속도 기준 · 남은 ${N(need)}개</div></div></div>
-  <div class="bars">${dl.map(x=>{const t=(x.cp||0)+(x.ss||0);const h=Math.max(t?3:1,Math.round(t/mx*56));return `<div title="${x.date} 쿠팡 ${x.cp} · 스스 ${x.ss}" style="height:${h}px;background:linear-gradient(to top,var(--acc) ${t?Math.round((x.cp||0)/t*100):0}%,#3B5F9E ${t?Math.round((x.cp||0)/t*100):0}%)">${t?`<span>${t}</span>`:''}</div>`}).join('')}</div>
+  <div class="bars">${dl.map(x=>{const t=(x.cp||0)+(x.ss||0);const h=Math.max(t?3:1,Math.round(t/mx*56));return `<div title="${x.date} 쿠팡 ${x.cp} · 스스 ${x.ss}" style="height:${h}px;background:linear-gradient(to top,var(--acc) ${t?Math.round((x.cp||0)/t*100):0}%,#5B84C8 ${t?Math.round((x.cp||0)/t*100):0}%)">${t?`<span>${t}</span>`:''}</div>`}).join('')}</div>
   <div class="bars-x">${dl.map((x,i)=>`<div>${(i%5===4||i===dl.length-1)?x.date.slice(5):''}</div>`).join('')}</div>
   <div class="note" style="margin-top:6px">막대 = 그날 등록 수(진한 파랑 쿠팡, 연한 파랑 스스). 쿠팡 등록일은 쿠팡 API createdAt, 스스는 등록일 실측.</div>`:'<div class="note">등록 이력 없음</div>';
  const rs=r.rounds||[];
