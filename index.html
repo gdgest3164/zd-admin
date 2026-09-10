@@ -127,6 +127,7 @@ pre{background:var(--pre);color:#C9D1DB;padding:12px;border-radius:9px;font-size
  <div id="banner"></div>
  <h2>내가 결정할 것</h2><div id="decisions"></div>
  <h2>오늘 흐름</h2><div class="grid" id="flow"></div>
+ <h2>배송 정확도 <span class="src">쿠팡 주문 · 최근 14일 · 목표 출고 99% 배송 95%</span></h2><div class="grid" id="dacc"></div><div id="dacc_late"></div>
  <details><summary id="auto_sum">자동으로 처리된 것</summary><div id="auto"></div></details>
  <details><summary>진단 로그 (감시루프 최근)</summary><pre id="log"></pre></details>
 </section>
@@ -256,6 +257,11 @@ function renderToday(){
   kp('반품 진행',R.진행중||0,`누적 ${R.총건수||0}건`,(R.진행중||0)?'warn':'')+
   kp('오늘 등록',reg.today_new==null?'-':'+'+reg.today_new,`쿠팡 승인완료 ${N(reg.cp_ok)} / ${N(reg.target)}`)+
   kp('가격·재고 감시',w.ts?String(w.ts).slice(5,16):'-',`${N(w.checked)}개 점검 · 지혈 ${((D.pipeline||{}).nodes||{}).watch?.bleed_today??0}건`);
+ const A=D.delivery_acc||{}, M=A.metrics||{}, pc=m=>m&&m.n?`${Number(m.pct).toFixed(1)}%`:'-';
+ const cls=(m,t)=>!m||!m.n?'':(m.pct>=t?'ok':(m.pct>=95?'warn':'bad'));
+ const sub=(m,t)=>m&&m.n?`${m.ok}/${m.n}건 정시 · 목표 ${t}%${m.n<20?' · 표본 20건 미만':''}`:'판정된 주문 없음';
+ document.getElementById('dacc').innerHTML=kp('정시 출고',pc(M.ship),sub(M.ship,99),cls(M.ship,99),'택배 첫 스캔')+kp('정시 배송',pc(M.delivery),sub(M.delivery,95),cls(M.delivery,95),'배송 완료')+kp('판정 대기',M.pending??0,'출고 기한 전 · 배송 중','',A.ts?String(A.ts).slice(5,16):'');
+ document.getElementById('dacc_late').innerHTML=(A.late||[]).map(r=>`<div class="note" style="margin:6px 0;border-left:3px solid var(--bad);padding-left:8px"><b>${esc(r.판정)}</b> ${esc(r.상품)} — 기한 ${esc(r.기한)} · 실제 ${esc(r.실제)} · 원인 ${esc(r.원인)}</div>`).join('');
  const all=w.alerts||[]; const auto=all.filter(a=>a.처리==='자동'), info=all.filter(a=>a.처리==='정보');
  const byKind={}; auto.forEach(a=>byKind[a.kind]=(byKind[a.kind]||0)+1);
  document.getElementById('auto_sum').textContent=`자동으로 처리된 것 ${auto.length}건 · 참고 ${info.length}건`;
@@ -402,7 +408,7 @@ function load(manual){
  }
 }
 /* ── 새 버전 자동 반영: 배포 뒤 폰이 옛 페이지를 캐시해 '그래프가 안 보이는' 문제 방지 (2026-09-08) ── */
-const VERSION='ZDV-'+'20260908-1600';
+const VERSION='ZDV-'+'20260911-0145';
 function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 showTab(localStorage.getItem('zd2_tab')||'today');
 load();setInterval(()=>{if(!paused)load()},60000);setTimeout(checkVersion,5000);setInterval(checkVersion,300000);
