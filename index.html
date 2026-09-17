@@ -49,6 +49,7 @@ h2 .src{font-weight:500;margin-left:6px}
 .dc .price{font-weight:800;font-size:15px}
 .dc .meta{font-size:12px;color:var(--mut);margin-top:3px}
 .dc .msg{font-size:13px;margin-top:6px;line-height:1.55}
+.dc .msg.wrap{white-space:pre-wrap}
 .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:5px;background:var(--th);color:var(--mut);margin-right:5px;vertical-align:1px}
 .tag.cp{background:var(--acc-bg);color:var(--cp)}.tag.ss{background:var(--ok-bg);color:var(--ss)}.tag.bad{background:var(--bad-bg);color:var(--bad)}.tag.warn{background:var(--warn-bg);color:var(--warn)}.tag.ok{background:var(--ok-bg);color:var(--ok)}
 .steps{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0 2px;font-size:11.5px}
@@ -239,7 +240,7 @@ function alertCard(a){
  if(a.승인가능==='musinsa_return')btn=`<button class="pri" onclick="returnApprove('${esc(a.no)}')">${ico('undo')}무신사 반품 신청 승인</button>`;
  if(a.승인가능==='return_complete')btn=`<button class="pri" onclick="returnComplete('${esc(a.no)}')">${ico('check')}쿠팡 반품 완료 승인</button>`;
  if(a.승인가능==='brand_withdraw')btn=`<button class="danger" onclick="brandWithdraw('${esc(a.no)}')">브랜드 전량 철수</button>`;
- return `<div class="dc alert ${a.처리==='실패'?'bad':''}"><div class="t"><span class="name"><span class="tag warn">${esc(a.kind)}${a.처리==='실패'?' · 자동처리 실패':''}</span>${esc(strip(a.name))}</span><span class="meta">${esc(a.no)}</span></div><div class="msg">${esc(strip(a.msg))}</div>${btn?`<div class="act">${btn}</div>`:''}</div>`;
+ return `<div class="dc alert ${a.처리==='실패'?'bad':''}"><div class="t"><span class="name"><span class="tag warn">${esc(a.kind)}${a.처리==='실패'?' · 자동처리 실패':''}</span>${esc(strip(a.name))}</span><span class="meta">${esc(a.no)}</span></div><div class="msg wrap">${esc(strip(a.msg))}</div>${btn?`<div class="act">${btn}</div>`:''}</div>`;
 }
 function renderToday(){
  const d=decisions(); const nb=document.getElementById('n_today'); nb.textContent=d.n; nb.hidden=!d.n;
@@ -408,7 +409,7 @@ function load(manual){
  }
 }
 /* ── 새 버전 자동 반영: 배포 뒤 폰이 옛 페이지를 캐시해 '그래프가 안 보이는' 문제 방지 (2026-09-08) ── */
-const VERSION='ZDV-'+'20260917-1423';
+const VERSION='ZDV-'+'20260917-1734';
 function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 showTab(localStorage.getItem('zd2_tab')||'today');
 load();setInterval(()=>{if(!paused)load()},60000);setTimeout(checkVersion,5000);setInterval(checkVersion,300000);
