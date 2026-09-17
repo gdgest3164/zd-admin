@@ -191,7 +191,7 @@ function renderVitals(){
  const st=(s,warnS,badS)=>s==null?'bad':s>badS?'bad':s>warnS?'warn':'ok';
  const items=[
   ['pulse','감시루프',v.loop_age,age(v.loop_age),st(v.loop_age,600,2100)],
-  ['scan','시세 수집기',v.ext_age,age(v.ext_age)+(r.ext_loads_today?` · 오늘 ${r.ext_loads_today}p`:''),st(v.ext_age,900,3600)],
+  ['scan','시세 수집기',v.ext_age,(r.ext_capped?`오늘 상한 ${N(r.ext_cap)}p 완료 · 내일 재개`:age(v.ext_age)+(r.ext_loads_today?` · 오늘 ${r.ext_loads_today}p`:'')),r.ext_capped?'ok':st(v.ext_age,900,3600)],
   ['clock','전체 감시',v.full_watch_age,v.full_watch_age==null?'없음':`${age(v.full_watch_age)} · ${Math.round((v.full_watch_sec||0)/60)}분 소요`,st(v.full_watch_age,3900,7200)],
   ['cloud','폰 동기화',null,D._sync_age==null?'-':age(D._sync_age),D._sync_age==null?'ok':D._sync_age>900?'bad':D._sync_age>420?'warn':'ok'],
  ];
@@ -332,7 +332,7 @@ function renderReg(){
  const rs=r.rounds||[];
  document.getElementById('rounds_t').innerHTML=`<tr><th>차수</th><th class="r">후보</th><th class="r">GO</th><th class="r">등록</th><th>판정 시각</th></tr>`+(rs.length?rs.map(x=>`<tr><td>${x.round}차</td><td class="r num">${x.cand}</td><td class="r num">${x.go}</td><td class="r num ${x.registered<x.go?'neg':''}">${x.registered}</td><td>${x.at}</td></tr>`).join('')+`<tr><td><b>합계</b></td><td class="r num">${rs.reduce((a,x)=>a+x.cand,0)}</td><td class="r num">${rs.reduce((a,x)=>a+x.go,0)}</td><td class="r num">${rs.reduce((a,x)=>a+x.registered,0)}</td><td></td></tr>`:'<tr><td colspan="5" class="note">오늘 판정된 차수 없음</td></tr>');
  const v=D.vitals||{};
- document.getElementById('reg_ext').innerHTML=kp('수집기 마지막 신호',age(v.ext_age),`${esc(r.ext_event||'')} · 오늘 ${N(r.ext_loads_today)}페이지`,(v.ext_age||0)>3600?'bad':(v.ext_age||0)>900?'warn':'ok','확장 보고')+kp('후보 슬롯','07:10 · 11:05 · 15:05 · 19:05','놓친 슬롯은 다음 슬롯 전까지 자동 따라잡음')+kp('후잉 기록 대기',v.whooing_pending??'-',v.whooing_pending?'2시간마다 예약 작업이 기록':'모두 기록됨',v.whooing_pending?'warn':'ok','후잉 큐');
+ document.getElementById('reg_ext').innerHTML=kp('수집기 마지막 신호',r.ext_capped?'상한 완료':age(v.ext_age),`${esc(r.ext_event||'')} · 오늘 ${N(r.ext_loads_today)}/${N(r.ext_cap)}페이지`,(v.ext_age||0)>3600?'bad':(v.ext_age||0)>900?'warn':'ok','확장 보고')+kp('후보 슬롯','07:10 · 11:05 · 15:05 · 19:05','놓친 슬롯은 다음 슬롯 전까지 자동 따라잡음')+kp('후잉 기록 대기',v.whooing_pending??'-',v.whooing_pending?'2시간마다 예약 작업이 기록':'모두 기록됨',v.whooing_pending?'warn':'ok','후잉 큐');
 }
 
 /* ── 추이 차트 (SVG, 라이브러리 없음) ── */
@@ -408,7 +408,7 @@ function load(manual){
  }
 }
 /* ── 새 버전 자동 반영: 배포 뒤 폰이 옛 페이지를 캐시해 '그래프가 안 보이는' 문제 방지 (2026-09-08) ── */
-const VERSION='ZDV-'+'20260911-0145';
+const VERSION='ZDV-'+'20260917-1423';
 function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 showTab(localStorage.getItem('zd2_tab')||'today');
 load();setInterval(()=>{if(!paused)load()},60000);setTimeout(checkVersion,5000);setInterval(checkVersion,300000);
