@@ -137,7 +137,7 @@ pre{background:var(--pre);color:#C9D1DB;padding:12px;border-radius:9px;font-size
  <h2>최근 30일 추이 <span class="src">주문 실측 · 반품 실측</span></h2>
  <div class="grid" id="series_kpi" style="margin-bottom:8px"></div>
  <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 주문 수</span><span class="src">주문목록</span></div><div id="ch_orders"></div></div>
- <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 세전 순이익 (반품 손실은 반품일에 반영)</span><span class="src">주문·반품</span></div><div id="ch_profit"></div></div>
+ <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 순이익 — 세후 (반품 손실은 반품일에 반영)</span><span class="src">주문·반품</span></div><div id="ch_profit"></div></div>
  <div class="kpi"><div class="k"><span>누적 순이익 — 실선 판매만 · 점선 광고비 차감</span><span class="src">주문·반품·후잉</span></div><div id="ch_cum"></div></div>
  <h2>전환 — 방문 · 장바구니 · 주문 <span class="src">쿠팡 WING 엑셀 (월요일 업로드)</span></h2>
  <div class="grid" id="funnel_kpi" style="margin-bottom:8px"></div>
@@ -230,7 +230,7 @@ function orderCard(o){
  const full=`${o.수령인} ${o.연락처}\n${o.주소}\n${o.배송메모||''}`.trim();
  const chip=(k,v)=>v?`<span class="chip" onclick='copy(${JSON.stringify(String(v))},"${k} 복사")'><span class="k">${k}</span>${esc(v)}</span>`:'';
  return `<div class="dc ${mk} ${isBlocked?'bad':''}"><div class="t"><span class="name"><span class="tag ${mk}">${esc(o.마켓||'스스')}</span>${esc(strip(o.상품명))}</span><span class="price num">${원(o.판매가)}</span></div>
-  <div class="meta">${esc(o.날짜)} · 옵션 <b>${esc(o.옵션||'-')}</b>${o.발주확인?` · 재고 ${esc(strip(o.발주확인))}`:''} · 세전 <b class="num">${원(p.내손에??net)}</b> <span class="src ${o.실수수료?'':'est'}">${o.실수수료?'수수료 실측':'수수료 추정'}</span></div>
+  <div class="meta">${esc(o.날짜)} · 옵션 <b>${esc(o.옵션||'-')}</b>${o.발주확인?` · 재고 ${esc(strip(o.발주확인))}`:''} · 세후 <b class="num">${원(p.내손에??net)}</b> <span class="src ${o.실수수료?'':'est'}">${o.실수수료?'수수료 실측':'수수료 추정'}</span></div>
   ${steps}${msg?`<div class="msg">${msg}</div>`:''}
   <div class="chips">${chip('받는분',o.수령인)}${chip('연락처',o.연락처)}${chip('주소',o.주소)}${chip('메모',o.배송메모)}<span class="chip" onclick='copy(${JSON.stringify(full)},"전체 복사")'>${ico('copy')} 전체</span></div>
   ${act?`<div class="act">${act}</div>`:''}</div>`;
@@ -287,7 +287,7 @@ function renderMoney(){
  // 판매 후 아직 안 들어온 돈(추정): 발송완료·비반품 주문의 (판매가 − 추정 수수료) 합 − 입금 완료분
  const unpaidEst=O.filter(o=>String(o.상태||'').startsWith('발송완료')&&!retBy[String(o.주문번호)]).reduce((a,o)=>a+((o.판매가||0)-((o.손익||{}).수수료||0)),0)-((NV.입금완료||0)+paidCp);
  document.getElementById('cash').insertAdjacentHTML('beforeend',kp('판매 후 미입금',원(Math.max(0,unpaidEst)),'발송완료·비반품 주문의 정산예정액 합 − 입금완료. 정산 API 인식 전 참고용','','추정'));
- document.getElementById('orders_t').innerHTML=`<tr><th>날짜</th><th>마켓</th><th>상품</th><th class="r">판매가</th><th class="r">실결제</th><th class="r">수수료</th><th class="r">세전</th><th>상태</th></tr>`+
+ document.getElementById('orders_t').innerHTML=`<tr><th>날짜</th><th>마켓</th><th>상품</th><th class="r">판매가</th><th class="r">실결제</th><th class="r">수수료</th><th class="r">세후</th><th>상태</th></tr>`+
   O.map(o=>{const p=o.손익||{};const ret=retBy[String(o.주문번호)];const fee=o.실수수료||p.수수료;const net=ret?-(ret.반품손실||0):p.내손에;
    return `<tr><td>${esc(String(o.날짜).slice(5))}</td><td><span class="tag ${o.마켓==='쿠팡'?'cp':'ss'}">${esc(o.마켓||'스스')}</span></td><td style="white-space:normal;min-width:160px">${esc(strip(o.상품명).slice(0,40))}<div class="note">${esc(o.옵션||'')}</div></td><td class="r num">${원(o.판매가)}</td><td class="r num">${ret?`${원(o.실결제액||o.원가)}<div class="note">환불 ${원(ret.무신사환불)}</div>`:원(o.실결제액||o.원가)}</td><td class="r num">${ret?'-':`${원(fee)} ${o.실수수료?'':'<span class="src est">추정</span>'}`}</td><td class="r num ${net<0?'neg':'pos'}">${ret?(net?'-'+원(-net):'0원'):원(net)}${ret?'<div class="note">반품비</div>':''}</td><td>${ret?`<span class="tag bad">반품 · ${esc(ret.귀책||'')} 귀책</span>`:`<span class="tag ${String(o.상태).startsWith('발송완료')?'ok':'warn'}">${esc(o.상태)}</span>`}</td></tr>`}).join('');
  const P=D.pnl_v2||{}, pm=P.months||[];
@@ -360,7 +360,7 @@ function renderSeries(){
  const kp=(k,v,s,c)=>`<div class="kpi ${c||''}"><div class="k">${k}</div><div class="v num">${v}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
  const last7=rows.slice(-7), prev7=rows.slice(-14,-7), sum=(a,k)=>a.reduce((x,r)=>x+(r[k]||0),0);
  document.getElementById('series_kpi').innerHTML=kp('30일 주문',S.orders_total,`최근 7일 ${sum(last7,'orders')} · 전주 ${sum(prev7,'orders')} · 반품 ${S.returns_total}`)
-  +kp('30일 세전 순이익',원(S.profit_total),'판매 − 원가 − 수수료 − 부가세 − 반품 손실',S.profit_total<0?'bad':'ok')
+  +kp('30일 순이익 (세후)',원(S.profit_total),'판매 − 원가 − 수수료 − 부가세 − 반품 손실',S.profit_total<0?'bad':'ok')
   +kp('광고비 차감 순이익',원(S.net_total),`광고·이벤트 ${원(S.marketing_total)} 차감 (9/10부터 0)`,S.net_total<0?'bad':'ok');
  svgChart(document.getElementById('ch_orders'),rows,{h:110,series:[{k:'orders',color:'#6EA8FF',label:true}]});
  svgChart(document.getElementById('ch_profit'),rows,{h:130,signed:true,money:true,series:[{k:'profit',color:'#4ADE80',neg:'#FF7B72',label:true}]});
@@ -409,7 +409,7 @@ function load(manual){
  }
 }
 /* ── 새 버전 자동 반영: 배포 뒤 폰이 옛 페이지를 캐시해 '그래프가 안 보이는' 문제 방지 (2026-09-08) ── */
-const VERSION='ZDV-'+'20260917-1734';
+const VERSION='ZDV-'+'20260921-1220';
 function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 showTab(localStorage.getItem('zd2_tab')||'today');
 load();setInterval(()=>{if(!paused)load()},60000);setTimeout(checkVersion,5000);setInterval(checkVersion,300000);
