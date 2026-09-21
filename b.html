@@ -237,5 +237,7 @@ function render(d){if(!d)return;D=d;renderTop();renderQueue();renderSide();chart
 function load(manual){if(paused&&!manual)return;
  if(REMOTE){fetch(API+'/data?key='+RKEY).then(r=>r.json()).then(rows=>{const st={};(rows||[]).forEach(x=>st[x.kind]=x);const d=(st.dashboard||{}).payload;if(!d){toast('아직 동기화된 데이터 없음');return}d._sync_age=st.dashboard.updated_at?Math.round((Date.now()-new Date(st.dashboard.updated_at))/1000):null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'));return}
  fetch('/data'+(RKEY?'?key='+RKEY:'')).then(r=>r.json()).then(d=>{d._sync_age=null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'))}
-load();setInterval(()=>load(false),REMOTE?300000:60000);
+const VERSION='ZDV-'+'20260922-0053';
+function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
+load();setInterval(()=>load(false),REMOTE?300000:60000);if(REMOTE){checkVersion();setInterval(checkVersion,600000)}
 </script></body></html>
