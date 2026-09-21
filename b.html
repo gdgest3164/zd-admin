@@ -57,6 +57,7 @@ details summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(
  </div>
 </div>
 <div class="pane" style="border-top:1px solid var(--line)"><div class="ph"><b>30D · ORDERS / CUMULATIVE NET</b><span>막대 주문 · 선 누적 세후 (반품 손실 반영)</span></div><div id="chMain"></div></div>
+<div class="pane" style="border-top:1px solid var(--line)"><div class="ph"><b>FUNNEL · WING 인사이트</b><span id="funSrc">방문 · 장바구니 · 주문 — 월요일 업로드 엑셀</span></div><div class="mini" id="funStats"></div><div id="chFun"></div><div id="chCvr"></div></div>
 <div class="g2">
  <div class="pane"><div class="ph"><b>P&amp;L BY MONTH</b><span>쇼핑만 · 도구비 제외</span></div><div class="tw"><table id="pnl"></table></div><div class="note" id="pnlNote"></div></div>
  <div class="pane"><div class="ph"><b id="ifn">IN FLIGHT</b><span>무신사 출고 후 송장 자동</span></div><div id="inflight"></div><details style="margin-top:14px"><summary>LOOP LOG</summary><pre id="log"></pre></details></div>
@@ -178,6 +179,29 @@ function chartReg(el,dl){
  dl.forEach((x,i)=>{if(i%5===0||i===n-1)g+=`<text x="${(L+bw*i+bw/2).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="10" font-family="IBM Plex Mono,monospace" fill="#7C8388">${x.date.slice(5)}</text>`});
  el.innerHTML=`<svg viewBox="0 0 ${Wd} ${H}" width="100%" style="display:block;margin-top:12px;overflow:visible">${g}</svg>`;
 }
+/* ── 전환 깔때기 (WING 인사이트 엑셀: 인사이트/SELLER_INSIGHTS_DAILY_SUMMARY_METRICS_*.xlsx) ── */
+function renderFunnel(){
+ const F=D.funnel||{}, rows=F.rows||[], st=document.getElementById('funStats'), has=rows.filter(r=>r.visitors!=null), sum=(a,k)=>a.reduce((x,r)=>x+(r[k]||0),0);
+ if(!has.length){st.innerHTML='';document.getElementById('chFun').innerHTML='<div class="empty">WING 판매분석 일별 엑셀이 없습니다 — 인사이트 폴더에 SELLER_INSIGHTS_DAILY_SUMMARY_METRICS_*.xlsx 를 넣으면 표시</div>';document.getElementById('chCvr').innerHTML='';return}
+ const v=sum(has,'visitors'),c=sum(has,'carts'),o=sum(has,'orders'),l7=has.slice(-7),cvr=v?o/v*100:0,cvr7=sum(l7,'visitors')?sum(l7,'orders')/sum(l7,'visitors')*100:0;
+ const mini=(k,val,s,cl)=>`<div><div class="k">${k}</div><div class="v n ${cl||''}">${val}</div><div class="s">${s}</div></div>`;
+ st.innerHTML=mini('기간 방문자',N(v),`${has.length}일치 ${has[0].date.slice(5)}~${has[has.length-1].date.slice(5)}`)+mini('장바구니',N(c),`방문 대비 ${v?(c/v*100).toFixed(1):0}%`)+mini('주문',N(o),`장바구니 대비 ${c?(o/c*100).toFixed(0):0}%`)+mini('구매 전환율',`${cvr.toFixed(2)}%`,`최근 7일 ${cvr7.toFixed(2)}% · 게이트 1%`,cvr>=1?'ok':cvr>=0.5?'warn':'bad');
+ document.getElementById('funSrc').textContent=F.last_date?`WING 인사이트 · 마지막 ${F.last_date.slice(5)} · 없는 날은 빈칸`:'WING 인사이트';
+ const Wd=1200,H=190,L=46,R=50,T=16,B=24,iw=Wd-L-R,ih=H-T-B,n=rows.length,bw=iw/n, vmax=Math.max(1,...rows.map(r=>r.visitors||0)), omax=Math.max(1,...rows.map(r=>r.orders||0));
+ const yv=x=>T+ih-(x/vmax)*ih, yo=x=>T+ih-(x/omax)*ih, tx=(x,y,t,a,c)=>`<text x="${x}" y="${y}" text-anchor="${a||'middle'}" font-size="10" font-family="IBM Plex Mono,monospace" fill="${c||'#61686C'}">${t}</text>`; let g='';
+ [0,.5,1].forEach(f=>{const y=T+ih-f*ih;g+=`<line x1="${L}" x2="${Wd-R}" y1="${y}" y2="${y}" stroke="${f===0?'#2E3336':'#191C1E'}"/>`+tx(L-8,y+4,Math.round(vmax*f),'end')+tx(Wd-R+8,y+4,Math.round(omax*f),'start')});
+ rows.forEach((r,i)=>{if(r.visitors==null)return;const x=L+bw*i+bw*.18,w=bw*.64;g+=`<rect x="${x.toFixed(1)}" y="${yv(r.visitors).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(1,ih-(yv(r.visitors)-T)).toFixed(1)}" fill="#2F3A42"><title>${r.date} 방문 ${r.visitors} · 장바구니 ${r.carts} · 주문 ${r.orders}</title></rect>`;
+  if(r.carts)g+=`<rect x="${x.toFixed(1)}" y="${yv(r.carts).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(1,ih-(yv(r.carts)-T)).toFixed(1)}" fill="#7FA0B8"/>`;
+  if(r.orders)g+=`<circle cx="${(x+w/2).toFixed(1)}" cy="${yo(r.orders).toFixed(1)}" r="3.5" fill="#6FB08A"/>`+tx(x+w/2,yo(r.orders)-7,r.orders,'middle','#6FB08A')});
+ rows.forEach((r,i)=>{if(i%5===0||i===n-1)g+=tx(L+bw*i+bw/2,H-7,r.date.slice(5))});
+ document.getElementById('chFun').innerHTML=`<div class="note" style="margin-top:12px">막대 방문자(어두움) · 장바구니(파랑) · 점 주문 — 왼쪽 축 방문, 오른쪽 축 주문</div><svg viewBox="0 0 ${Wd} ${H}" width="100%" style="display:block;margin-top:6px;overflow:visible">${g}</svg>`;
+ const cm=Math.max(0.5,...rows.map(r=>r.cvr||0)), yc=x=>T+ih-(x/cm)*ih, H2=120, ih2=H2-T-B, yc2=x=>T+ih2-(x/cm)*ih2; let g2='';
+ [0,.5,1].forEach(f=>{const y=T+ih2-f*ih2;g2+=`<line x1="${L}" x2="${Wd-R}" y1="${y}" y2="${y}" stroke="${f===0?'#2E3336':'#191C1E'}"/>`+tx(L-8,y+4,(cm*f).toFixed(1)+'%','end')});
+ const pts=rows.filter(r=>r.cvr!=null); g2+=`<polyline points="${pts.map(r=>`${(L+bw*rows.indexOf(r)+bw/2).toFixed(1)},${yc2(Math.max(0,r.cvr||0)).toFixed(1)}`).join(' ')}" fill="none" stroke="#D9A867" stroke-width="2"/>`;
+ g2+=`<line x1="${L}" x2="${Wd-R}" y1="${yc2(Math.min(cm,1))}" y2="${yc2(Math.min(cm,1))}" stroke="#6FB08A" stroke-dasharray="4 4"/>`+tx(Wd-R+8,yc2(Math.min(cm,1))+4,'게이트 1%','start','#6FB08A');
+ rows.forEach((r,i)=>{if(i%5===0||i===n-1)g2+=tx(L+bw*i+bw/2,H2-7,r.date.slice(5))});
+ document.getElementById('chCvr').innerHTML=`<div class="note" style="margin-top:14px">구매 전환율 % (주문 ÷ 방문자)</div><svg viewBox="0 0 ${Wd} ${H2}" width="100%" style="display:block;margin-top:6px;overflow:visible">${g2}</svg>`;
+}
 /* ── 손익 · 등록 · 배송 · 반품 ── */
 function renderTables(){
  const P=D.pnl_v2||{}, pm=P.months||[], rowP=(x,l)=>`<tr><td class="l">${l}</td><td>${x.유효건}${x.반품?` <span class="tag bad">반품 ${x.반품}</span>`:''}</td><td>${N(x.유효매출)}</td><td>${N(x.세전)}</td><td>${N(x.부가세)}</td><td>${x.마케팅비?'-'+N(x.마케팅비):'-'}</td><td class="${(x.쇼핑순이익||0)<0?'bad':'ok'}" style="font-weight:600">${S(x.쇼핑순이익)}</td></tr>`;
@@ -209,7 +233,7 @@ function renderBottom(){
  document.getElementById('list').innerHTML=`<tr><th class="l">상품</th><th>원가</th><th>쿠팡가</th><th>세전</th><th class="l">상태</th></tr>`+rows.map(x=>{const fl=x.stopped?'중지':x.bleed?'지혈':(x.flags||[])[0]||'', c=x.cp_net==null?'':x.cp_net<0?'bad':x.cp_net<4000?'warn':'ok';
   return `<tr><td class="t">${esc(x.name)}</td><td>${N(x.cost)}</td><td>${x.cp_pid?N(x.cp_price):'-'}</td><td class="${c}" style="${c==='bad'?'font-weight:600':''}">${x.cp_net==null?'-':N(x.cp_net)}</td><td class="l"><span class="tag ${fl==='중지'||fl==='마진가드'?'bad':fl?'warn':''}">${esc(fl||'정상')}</span></td></tr>`}).join('');
 }
-function render(d){if(!d)return;D=d;renderTop();renderQueue();renderSide();chartMain(document.getElementById('chMain'));renderTables();renderBottom()}
+function render(d){if(!d)return;D=d;renderTop();renderQueue();renderSide();chartMain(document.getElementById('chMain'));renderFunnel();renderTables();renderBottom()}
 function load(manual){if(paused&&!manual)return;
  if(REMOTE){fetch(API+'/data?key='+RKEY).then(r=>r.json()).then(rows=>{const st={};(rows||[]).forEach(x=>st[x.kind]=x);const d=(st.dashboard||{}).payload;if(!d){toast('아직 동기화된 데이터 없음');return}d._sync_age=st.dashboard.updated_at?Math.round((Date.now()-new Date(st.dashboard.updated_at))/1000):null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'));return}
  fetch('/data'+(RKEY?'?key='+RKEY:'')).then(r=>r.json()).then(d=>{d._sync_age=null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'))}
