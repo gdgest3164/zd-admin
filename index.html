@@ -239,6 +239,7 @@ function alertCard(a){
  let btn='';
  if(a.승인가능==='musinsa_return')btn=`<button class="pri" onclick="returnApprove('${esc(a.no)}')">${ico('undo')}무신사 반품 신청 승인</button>`;
  if(a.승인가능==='return_complete')btn=`<button class="pri" onclick="returnComplete('${esc(a.no)}')">${ico('check')}쿠팡 반품 완료 승인</button>`;
+ if(a.승인가능==='cs_reply')btn=`<button class="pri" onclick="csReply('${esc(a.no)}')">${ico('check')}답변 전송</button><button onclick="csReject('${esc(a.no)}')">반려 — 다시 쓰게</button>`;
  if(a.승인가능==='brand_withdraw')btn=`<button class="danger" onclick="brandWithdraw('${esc(a.no)}')">브랜드 전량 철수</button>`;
  return `<div class="dc alert ${a.처리==='실패'?'bad':''}"><div class="t"><span class="name"><span class="tag warn">${esc(a.kind)}${a.처리==='실패'?' · 자동처리 실패':''}</span>${esc(strip(a.name))}</span><span class="meta">${esc(a.no)}</span></div><div class="msg wrap">${esc(strip(a.msg))}</div>${btn?`<div class="act">${btn}</div>`:''}</div>`;
 }
@@ -397,6 +398,8 @@ function cancelOrder(pid,reason){if(!confirm('마켓에 판매자 취소를 요�
 function cancelApprove(pid){if(!confirm('무신사 주문을 취소(환불)하고 마켓 취소를 승인합니다. 진행할까요?'))return;queueAct('cancel',{productOrderId:pid})}
 function returnApprove(rid){if(!confirm('무신사에 반품 신청(수거요청)을 넣습니다. 회수송장 등록·환불 확인은 자동입니다. 반품비 약 6,000원은 우리 부담. 진행할까요?'))return;queueAct('return_request',{receiptId:rid})}
 function returnComplete(rid){if(!confirm('쿠팡 반품을 완료 처리합니다 (입고확인+승인 → 고객 환불). 진행할까요?'))return;queueAct('return_complete',{receiptId:rid})}
+function csReply(qid){if(!confirm('이 답변을 고객에게 보냅니다. 보낸 뒤에는 수정·삭제할 수 없습니다. 진행할까요?'))return;queueAct('cs_reply',{inquiryId:qid})}
+function csReject(qid){const n=prompt('반려 사유(다음 초안에 반영)','');if(n===null)return;queueAct('cs_reject',{inquiryId:qid,note:n})}
 function brandWithdraw(brand){if(!confirm('브랜드 "'+brand+'" 리스팅을 스스·쿠팡에서 전량 삭제하고 금지 브랜드로 등록합니다. 되돌릴 수 없습니다. 진행할까요?'))return;queueAct('brand_withdraw',{brand})}
 
 function load(manual){
@@ -409,7 +412,7 @@ function load(manual){
  }
 }
 /* ── 새 버전 자동 반영: 배포 뒤 폰이 옛 페이지를 캐시해 '그래프가 안 보이는' 문제 방지 (2026-09-08) ── */
-const VERSION='ZDV-'+'20260921-1220';
+const VERSION='ZDV-'+'20260921-1726';
 function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 showTab(localStorage.getItem('zd2_tab')||'today');
 load();setInterval(()=>{if(!paused)load()},60000);setTimeout(checkVersion,5000);setInterval(checkVersion,300000);
