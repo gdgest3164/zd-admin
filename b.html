@@ -1,0 +1,217 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>제로데일리 관제탑 B</title>
+<!-- Tower B · 계기판형 관제탑 (2026-09-21 사장님 Claude Design "관제 사이트 리디자인" tower-b-instrument 구현). 데이터는 관제탑_v2 와 같은 /data 피드(로컬) · Supabase dashboard payload(폰). -->
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" rel="stylesheet">
+<style>
+:root{--bg:#0B0C0D;--panel:#121415;--head:#101213;--line:#24282B;--line2:#191C1E;--tx:#DCE0E2;--mut:#8C9296;--mut2:#7C8388;--dim:#61686C;--acc:#7FA0B8;--ok:#6FB08A;--warn:#D9A867;--bad:#D9736B;--mono:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}html{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;padding-bottom:64px}
+a{color:var(--acc);text-decoration:none}.m{font-family:var(--mono)}.n{font-variant-numeric:tabular-nums}
+.hd{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:10px clamp(12px,2vw,20px);border-bottom:1px solid var(--line);background:var(--head);position:sticky;top:0;z-index:5}
+.brand{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.14em}.stamp{font-family:var(--mono);font-size:11.5px;color:var(--mut2);letter-spacing:.06em;margin-left:14px}
+.rail{display:flex;flex-wrap:wrap;gap:6px;font-family:var(--mono);font-size:11px}
+.pill{padding:3px 9px;border:1px solid #2B4438;background:#121A16;color:var(--ok);letter-spacing:.04em;white-space:nowrap}.pill.warn{border-color:#4A3C28;background:#1C1710;color:var(--warn)}.pill.bad{border-color:#5A2F2B;background:#1E1312;color:var(--bad)}
+.pill.btn{cursor:pointer;border-color:#2E3336;background:transparent;color:#B4BABE}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:1px;background:var(--bg);border-bottom:1px solid var(--line)}
+.tile{background:var(--panel);padding:14px 16px 13px;box-shadow:0 0 0 1px var(--line);min-width:0}
+.tile .k{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--mut2)}
+.tile .v{font-family:var(--mono);font-size:31px;font-weight:600;letter-spacing:-1px;line-height:1.15;margin-top:8px}.tile .s{font-size:12.5px;color:var(--mut);margin-top:4px}
+.tile .bar{height:3px;background:#1D2022;margin-top:11px}.tile .bar i{display:block;height:100%;background:var(--acc)}
+.src{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;padding:1px 5px;background:#1D2022;color:var(--mut)}.src.est{background:transparent;border:1px solid #4A3C28;color:var(--warn)}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:1px;background:var(--line);border-top:1px solid var(--line)}
+.pane{background:var(--bg);padding:16px clamp(12px,2vw,20px) 24px;min-width:0}.pane.col{display:flex;flex-direction:column;gap:26px}
+.ph{display:flex;align-items:baseline;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.ph b{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--mut2);font-weight:500}.ph span{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:10px 0;border-bottom:1px solid var(--line2)}.row .l{min-width:0;font-size:13.5px}.row .l small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--dim)}.row .r{font-family:var(--mono);font-size:16px;font-weight:600;white-space:nowrap}
+.q{display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;padding:14px 0;border-bottom:1px solid var(--line2)}.q .no{font-family:var(--mono);font-size:11px;color:var(--mut2);padding-top:2px}
+.sev{font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:2px 7px;white-space:nowrap;background:#1D2022;color:var(--mut)}.sev.bad{background:var(--bad);color:var(--bg)}.sev.warn{background:#2A2320;color:var(--warn);border:1px solid #4A3C28}
+.q .head{font-size:14.5px;font-weight:600}.q .body{font-size:13px;color:#9BA1A5;margin-top:5px;white-space:pre-wrap}.dense .q .body{display:none}
+.act{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.act button,.act a{padding:8px 12px;min-height:40px;border-radius:2px;font:inherit;font-size:12.5px;cursor:pointer;border:1px solid #2E3336;background:#1A1D1F;color:var(--tx);display:inline-flex;align-items:center;gap:6px}
+.act .pri{font-weight:600}.act .pri.bad{background:var(--bad);border-color:var(--bad);color:var(--bg)}.act .pri.acc{background:var(--acc);border-color:var(--acc);color:var(--bg)}
+.act .ghost{background:transparent;color:#B4BABE}.act .ref{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-left:2px}
+.act select,.act input{border:1px solid #2E3336;border-radius:2px;padding:8px 10px;min-height:40px;font-size:12.5px;background:var(--head);color:var(--tx)}.act input{width:170px}
+.chips{display:flex;flex-wrap:wrap;gap:1px;background:var(--bg);margin-top:10px}.chip{flex:1 1 118px;background:var(--panel);padding:9px 11px;box-shadow:0 0 0 1px var(--line);font-family:var(--mono);font-size:11px;color:var(--mut);display:flex;justify-content:space-between;gap:8px}.chip b{color:var(--tx);font-weight:600}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:1px;background:var(--bg);margin-top:10px}.mini div{background:var(--panel);padding:11px 12px;box-shadow:0 0 0 1px var(--line)}.mini .k{font-family:var(--mono);font-size:10px;letter-spacing:.09em;color:var(--mut2)}.mini .v{font-family:var(--mono);font-size:18px;font-weight:600;margin-top:5px}.mini .s{font-size:12px;color:var(--mut2);margin-top:2px}
+.tw{overflow-x:auto;margin-top:10px}table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px}th{text-align:right;font-size:10.5px;letter-spacing:.08em;color:var(--mut2);font-weight:500;padding:0 10px 7px;border-bottom:1px solid var(--line);white-space:nowrap}th.l{text-align:left}td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}td.l{text-align:left;color:#B4BABE}td.t{text-align:left;font-family:"Pretendard Variable",Pretendard,sans-serif;font-size:13px;min-width:220px;white-space:normal}td.t span{color:var(--mut2)}
+.tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:2px 6px;white-space:nowrap;background:#1D2022;color:var(--mut)}.tag.cp{background:#16222B;color:var(--acc)}.tag.ss{background:#132018;color:var(--ok)}.tag.bad{background:var(--bad);color:var(--bg)}.tag.warn{border:1px solid #4A3C28;color:var(--warn);background:transparent}
+.late{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line2)}.late .lb{font-family:var(--mono);font-size:10px;letter-spacing:.09em;padding:2px 7px;background:var(--bad);color:var(--bg);white-space:nowrap;height:fit-content}
+.steps{display:flex;gap:2px;margin-top:11px}.steps span{flex:1;height:4px;background:#1D2022}.steps span.on{background:var(--acc)}
+details summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--mut2);padding:5px 0}pre{font-family:var(--mono);font-size:11px;line-height:1.75;background:var(--head);border:1px solid var(--line);padding:11px;overflow:auto;margin:7px 0 0;color:#9BA1A5;max-height:260px}
+.note{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:9px}.empty{font-size:13px;color:var(--mut2);padding:14px 0}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;font-family:var(--mono);font-size:12px;display:none;z-index:9}
+@media(max-width:640px){.tile .v{font-size:26px}.stamp{display:block;margin:2px 0 0}}
+</style></head><body>
+<div class="hd"><div><span class="brand">ZERODAILY</span><span class="stamp" id="stamp">CONTROL · —</span></div><div class="rail" id="rail"></div></div>
+<div class="tiles" id="tiles"></div>
+<div class="g2">
+ <div class="pane"><div class="ph"><b>DECISION QUEUE</b><span id="qn" class="bad"></span></div><div id="queue"></div></div>
+ <div class="pane col">
+  <div><div class="ph"><b>CASH POSITION</b><span>정산 API · 후잉</span></div><div id="cash"></div></div>
+  <div><div class="ph"><b>INVENTORY</b><span id="invn"></span></div><div id="stock"></div></div>
+  <div><div class="ph"><b id="auton">AUTOMATED</b><span id="infon"></span></div><div class="chips" id="chips"></div></div>
+ </div>
+</div>
+<div class="pane" style="border-top:1px solid var(--line)"><div class="ph"><b>30D · ORDERS / CUMULATIVE NET</b><span>막대 주문 · 선 누적 세후 (반품 손실 반영)</span></div><div id="chMain"></div></div>
+<div class="g2">
+ <div class="pane"><div class="ph"><b>P&amp;L BY MONTH</b><span>쇼핑만 · 도구비 제외</span></div><div class="tw"><table id="pnl"></table></div><div class="note" id="pnlNote"></div></div>
+ <div class="pane"><div class="ph"><b id="ifn">IN FLIGHT</b><span>무신사 출고 후 송장 자동</span></div><div id="inflight"></div><details style="margin-top:14px"><summary>LOOP LOG</summary><pre id="log"></pre></details></div>
+</div>
+<div class="g2">
+ <div class="pane"><div class="ph"><b>REGISTRATION · 30D</b><span id="regn"></span></div><div id="chReg"></div><div class="mini" id="regStats"></div><div class="tw"><table id="rounds"></table></div></div>
+ <div class="pane col">
+  <div><div class="ph"><b>FULFILLMENT · 14D</b><span>쿠팡 주문 실제 스캔</span></div><div class="mini" id="ful"></div><div id="late"></div></div>
+  <div><div class="ph"><b>RETURNS</b><span id="retn"></span></div><div id="returns"></div></div>
+ </div>
+</div>
+<div class="pane" id="ledgerP" style="border-top:1px solid var(--line)"><div class="ph"><b>ORDER LEDGER</b><span id="ledgerNote"></span></div><div class="tw"><table id="ledger"></table></div></div>
+<div class="pane" id="listP" style="border-top:1px solid var(--line)"><div class="ph"><b>LISTINGS</b><span id="listNote"></span></div><div class="tw"><table id="list"></table></div></div>
+<div id="toast"></div>
+<script>
+const REMOTE=location.hostname.endsWith('github.io'), RKEY=new URLSearchParams(location.search).get('key'), API='https://gvhbwbvgwnfqpqyimizi.supabase.co/functions/v1/admin';
+const W=n=>(n==null||n==='')?'-':Number(n).toLocaleString('ko-KR')+'원', N=n=>(n==null||n==='')?'-':Number(n).toLocaleString('ko-KR'), S=(v,neg)=>(v<0?'-':'')+W(Math.abs(v||0));
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])), strip=s=>String(s??'').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}\u{FE0F}\u{200D}]/gu,'').replace(/\s{2,}/g,' ').trim();
+const age=s=>s==null?'없음':s<60?`${s}초`:s<3600?`${Math.floor(s/60)}분`:`${Math.floor(s/3600)}시간 ${Math.floor(s%3600/60)}분`;
+const FEE={'쿠팡':0.1155,'스스':0.067}; let D=null, paused=false, pref=JSON.parse(localStorage.getItem('zdb')||'{"dense":false,"ledger":true,"list":true}');
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',3500)}
+function copy(t,m){navigator.clipboard.writeText(t).then(()=>toast(m||'복사됨'))}
+function setPref(k,v){pref[k]=v;localStorage.setItem('zdb',JSON.stringify(pref));render(D)}
+document.addEventListener('focusin',e=>{if(e.target.tagName==='INPUT')paused=true});document.addEventListener('focusout',()=>setTimeout(()=>paused=false,300));
+/* ── 헤더 · 타일 ── */
+function renderTop(){
+ const v=D.vitals||{}, r=D.registration||{}, st=(s,w,b)=>s==null?'bad':s>b?'bad':s>w?'warn':'';
+ document.getElementById('stamp').textContent=`CONTROL · ${(D.vitals||{}).generated_at||''} KST`;
+ const pills=[[`감시루프 ${age(v.loop_age)}`,st(v.loop_age,600,2100)],[r.ext_capped?`수집기 상한 ${N(r.ext_cap)}p`:`수집기 ${age(v.ext_age)} · ${N(r.ext_loads_today)}p`,r.ext_capped?'':st(v.ext_age,900,3600)],[`전체감시 ${age(v.full_watch_age)}`,st(v.full_watch_age,3900,7200)],[`폰 동기화 ${D._sync_age==null?'로컬':age(D._sync_age)}`,D._sync_age==null?'':D._sync_age>900?'bad':D._sync_age>420?'warn':'']];
+ document.getElementById('rail').innerHTML=pills.map(([l,c])=>`<span class="pill ${c}">${esc(l)}</span>`).join('')+`<span class="pill btn" onclick="setPref('dense',!pref.dense)">${pref.dense?'큐 상세':'큐 간략'}</span><span class="pill btn" onclick="load(true)">새로고침</span>`;
+ const P=D.pnl_v2||{}, cur=(D.money||{}).month||new Date().toISOString().slice(0,7), pm=(P.months||[]).find(x=>x.month===cur)||{}, O=D.orders||[], today=(D.pipeline||{}).today||new Date().toISOString().slice(0,10);
+ const d7=new Date(Date.now()-7*864e5).toISOString().slice(0,10), d14=new Date(Date.now()-14*864e5).toISOString().slice(0,10);
+ const n7=O.filter(o=>String(o.날짜)>=d7).length, n14=O.filter(o=>String(o.날짜)>=d14&&String(o.날짜)<d7).length;
+ const M=(D.delivery_acc||{}).metrics||{}, ship=M.ship||{}, C=(D.pnl||{}).cash||{}; const dl=r.daily30||[], avg7=dl.slice(-7).reduce((a,x)=>a+(x.cp||0),0)/7, need=Math.max(0,(r.target||0)-(r.cp_ok||0)), days=avg7>0?Math.ceil(need/avg7):null;
+ const tile=(k,src,est,v,s,c,pct,bc)=>`<div class="tile"><div class="k"><span>${k}</span><span class="src ${est?'est':''}">${src}</span></div><div class="v n ${c}">${v}</div><div class="s">${s}</div><div class="bar"><i style="width:${Math.max(0,Math.min(100,pct))}%;background:${bc||'var(--acc)'}"></i></div></div>`;
+ document.getElementById('tiles').innerHTML=
+  tile(`${cur.slice(5)}월 순이익`,pm.수수료추정건?`추정 ${pm.수수료추정건}`:'실측',!!pm.수수료추정건,N(pm.쇼핑순이익??0),`세후 ${N(pm.세후)} − 반품 ${N(pm.반품손실||0)} − 광고 ${N(pm.마케팅비||0)}`,(pm.쇼핑순이익||0)<0?'bad':'',Math.min(100,(pm.쇼핑순이익||0)/4e6*100),'var(--ok)')+
+  tile('오늘 주문','실측',0,O.filter(o=>String(o.날짜||'').startsWith(today)).length,`7일 ${n7}건 · 전주 ${n14}건 · 누적 ${O.length}`,'',n7/40*100)+
+  tile('쿠팡 리스팅','실측',0,N(r.cp_ok),`${N(r.target)}까지 ${days==null?'-':days+'일'} · 오늘 +${r.today_new??'-'}`,'',r.target?(r.cp_ok||0)/r.target*100:0)+
+  tile('정시 출고',ship.n?`표본 ${ship.n}`:'없음',0,ship.n?`${Number(ship.pct).toFixed(1)}%`:'-',ship.n?`${ship.ok}/${ship.n}건 · 목표 99%${ship.pct<99?' 미달':''}`:'판정된 주문 없음',ship.n&&ship.pct<99?'bad':'ok',ship.pct||0,ship.pct<99?'var(--bad)':'var(--ok)')+
+  tile('순현금','후잉',0,S(C.순현금||0),`입금 ${N(C.입금||C.입금완료||0)} − 지출 ${N(C.지출||0)}`,(C.순현금||0)<0?'bad':'ok',100,(C.순현금||0)<0?'var(--bad)':'var(--ok)');
+}
+/* ── 결정 큐 (관제탑_v2 와 같은 규칙·같은 액션) ── */
+function queueAct(kind,payload){if(!REMOTE){toast('승인·실행은 폰 관제탑에서 (로컬은 조회 전용)');return}
+ return fetch(API+'/action?key='+RKEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,payload})}).then(r=>r.json()).then(o=>{toast(o.ok?'접수됨 — 10초 내 실행·반영':'실패: '+(o.msg||''));if(o.ok)fastPoll(15)})}
+function fastPoll(n){if(n<=0)return;setTimeout(()=>{load();fastPoll(n-1)},3000)}
+function pay(pid,f){if(!confirm(f?'무신사 원가가 장부보다 높은 상태입니다. 손해를 감수하고 지금 결제합니다. 진행할까요?':'무신사에서 이 주문을 결제합니다. 진행할까요? (최대 2분)'))return;queueAct('pay',{productOrderId:pid,force:!!f})}
+function mark(pid,st){queueAct('status',{productOrderId:pid,상태:st})}
+function ship(pid,mk){const dc=document.getElementById('dc_'+pid).value,tn=document.getElementById('tn_'+pid).value.trim();if(!confirm(`발송처리: ${dc} / ${tn} — ${mk}에 실제 발송으로 등록됩니다. 진행할까요?`))return;queueAct('dispatch',{productOrderId:pid,company:dc,tracking:tn})}
+function cancelOrder(pid,r){if(!confirm('마켓에 판매자 취소를 요청합니다(고객 환불). 취소율에 반영됩니다. 진행할까요?'))return;queueAct('cancel_order',{productOrderId:pid,reason:r})}
+function cancelApprove(pid){if(!confirm('무신사 주문을 취소(환불)하고 마켓 취소를 승인합니다. 진행할까요?'))return;queueAct('cancel',{productOrderId:pid})}
+function returnApprove(rid){if(!confirm('무신사에 반품 신청(수거요청)을 넣습니다. 반품비 약 6,000원은 우리 부담. 진행할까요?'))return;queueAct('return_request',{receiptId:rid})}
+function returnComplete(rid){if(!confirm('쿠팡 반품을 완료 처리합니다 (입고확인+승인 → 고객 환불). 진행할까요?'))return;queueAct('return_complete',{receiptId:rid})}
+function brandWithdraw(b){if(!confirm('브랜드 "'+b+'" 리스팅을 스스·쿠팡에서 전량 삭제하고 금지 브랜드로 등록합니다. 되돌릴 수 없습니다. 진행할까요?'))return;queueAct('brand_withdraw',{brand:b})}
+function csReply(q){if(!confirm('이 답변을 고객에게 보냅니다. 보낸 뒤에는 수정·삭제할 수 없습니다. 진행할까요?'))return;queueAct('cs_reply',{inquiryId:q})}
+function csReject(q){const n=prompt('반려 사유(다음 초안에 반영)','');if(n===null)return;queueAct('cs_reject',{inquiryId:q,note:n})}
+function orderCard(o,i){
+ const st=o.상태||'신규', isCart=st==='장바구니', isNew=st==='신규', isBlocked=st==='이행불가', isCW=st==='취소대기', mu=o.무신사번호?`https://www.musinsa.com/products/${o.무신사번호}`:'';
+ const p=o.손익||{}, fee=Math.round((o.판매가||0)*(FEE[o.마켓]||0.1)), net=(o.판매가||0)-fee-(o.실결제액||o.원가||0);
+ let sev='warn',head='',body='',act='';
+ if(isCart){const c=o.장바구니||{};head=`결제 승인 대기 — ${strip(o.상품명).slice(0,40)}`;body=`장바구니 ${c.시각||''} · 옵션 ${c.옵션||o.옵션||''} · 결제 예정 ${W(o.원가)}`+(o.결제보류?`\n결제 보류: 무신사 원가 ${W(o.결제보류.실시간원가)} > 장부 ${W(o.결제보류.장부원가)}`:'')+(o.결제실패?`\n결제 중단: ${o.결제실패.사유||''}`:'')+(o.원가&&net<0?`\n장부 기준 손실 예상 ${W(-net)} — 손해 감수 이행 원칙`:'');
+  act=`<button class="pri ${o.결제보류?'bad':'acc'}" onclick="pay('${o.productOrderId}',${!!o.결제보류})">${o.결제보류?'손해 감수하고 결제':'결제 승인'}</button><button class="ghost" onclick="mark('${o.productOrderId}','발주완료')">직접 결제함</button>`}
+ else if(isNew){head=`새 주문 — ${strip(o.상품명).slice(0,40)}`;body=`${o.날짜} · 옵션 ${o.옵션||'-'} · 판매가 ${W(o.판매가)}`;act=`${mu?`<a class="pri acc" href="${mu}" target="_blank">무신사에서 발주</a>`:''}<button class="ghost" onclick="mark('${o.productOrderId}','발주완료')">발주 완료로 표시</button>`}
+ else if(isBlocked){sev='bad';const b=o.이행불가||{},sold=/품절/.test(b.사유||'');head=`무신사에서 담을 수 없음 — ${strip(o.상품명).slice(0,36)}`;body=`${b.사유||''} (${b.시각||''})`;
+  act=`${sold?`<button class="pri bad" onclick="cancelOrder('${o.productOrderId}','품절')">주문 취소 요청 (재고 없음)</button>`:`<a class="pri acc" href="${mu}" target="_blank">무신사에서 옵션 확인</a>`}<button class="ghost" onclick="mark('${o.productOrderId}','신규')">다시 담기</button><button class="ghost" onclick="mark('${o.productOrderId}','발주완료')">직접 발주함</button>`}
+ else if(isCW){sev='bad';const q=o.취소요청||{};head=`고객 취소 요청 — ${strip(o.상품명).slice(0,36)}`;body=`${q.출처||''} ${q.시각||''} · 무신사 주문 ${o.무신사주문번호||''} 결제 ${W(o.실결제액)}`;act=`<button class="pri bad" onclick="cancelApprove('${o.productOrderId}')">취소 승인 — 무신사 환불 + 마켓 승인</button>`}
+ const full=`${o.수령인} ${o.연락처}\n${o.주소}\n${o.배송메모||''}`.trim();
+ return `<div class="q"><div class="no">${String(i).padStart(2,'0')}</div><div style="min-width:0"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="sev ${sev}">${sev==='bad'?'치명':'주의'}</span><span class="head">${esc(head)}</span><span class="tag ${o.마켓==='쿠팡'?'cp':'ss'}">${esc(o.마켓||'스스')}</span></div><div class="body">${esc(body)}</div><div class="act">${act}<button class="ghost" onclick='copy(${JSON.stringify(full)},"배송지 복사")'>배송지 복사</button><span class="ref">${esc(o.productOrderId)}</span></div></div></div>`;
+}
+function alertCard(a,i){
+ const fail=a.처리==='실패', sev=fail||/권리|출고지연|망장애|계정/.test(a.kind)?'bad':'warn'; let btn='';
+ if(a.승인가능==='musinsa_return')btn=`<button class="pri acc" onclick="returnApprove('${esc(a.no)}')">무신사 반품 신청 승인</button>`;
+ if(a.승인가능==='return_complete')btn=`<button class="pri acc" onclick="returnComplete('${esc(a.no)}')">쿠팡 반품 완료 승인</button>`;
+ if(a.승인가능==='brand_withdraw')btn=`<button class="pri bad" onclick="brandWithdraw('${esc(a.no)}')">브랜드 전량 철수</button>`;
+ if(a.승인가능==='cs_reply')btn=`<button class="pri acc" onclick="csReply('${esc(a.no)}')">답변 전송</button><button class="ghost" onclick="csReject('${esc(a.no)}')">반려 — 다시 쓰게</button>`;
+ return `<div class="q"><div class="no">${String(i).padStart(2,'0')}</div><div style="min-width:0"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="sev ${sev}">${sev==='bad'?'치명':'주의'}</span><span class="head">${esc(strip(a.name||a.kind))}</span><span class="tag">${esc(a.kind)}${fail?' · 자동처리 실패':''}</span></div><div class="body">${esc(strip(a.msg))}</div><div class="act">${btn}<button class="ghost" onclick='copy(${JSON.stringify(strip(a.msg))},"내용 복사")'>내용 복사</button><span class="ref">${esc(a.no)} · ${esc(a.time||'')}</span></div></div></div>`;
+}
+function renderQueue(){
+ const O=D.orders||[], pend=O.filter(o=>!String(o.상태||'').startsWith('발송완료')), dec=pend.filter(o=>o.상태!=='발주완료'), inflight=pend.filter(o=>o.상태==='발주완료');
+ const al=((D.watch||{}).alerts||[]).filter(a=>a.처리==='판단필요'||a.처리==='실패'); let i=0;
+ document.getElementById('qn').textContent=`${String(dec.length+al.length).padStart(2,'0')} 대기`;
+ document.getElementById('queue').className=pref.dense?'dense':'';
+ document.getElementById('queue').innerHTML=(dec.map(o=>orderCard(o,++i)).join('')+al.map(a=>alertCard(a,++i)).join(''))||'<div class="empty">결정할 것 없음 — 시스템이 정상 운영 중</div>';
+ document.getElementById('ifn').textContent=`IN FLIGHT · ${inflight.length}`;
+ document.getElementById('inflight').innerHTML=inflight.map(o=>{const p=o.손익||{};return `<div style="padding:14px 0;border-bottom:1px solid var(--line2)"><div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><span style="font-size:14px;font-weight:600">${esc(strip(o.상품명).slice(0,44))}</span><span class="m n" style="font-size:14px;font-weight:600;white-space:nowrap">${W(o.판매가)}</span></div><div class="steps"><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div><div class="m" style="font-size:10.5px;color:var(--mut2);margin-top:7px">${esc(String(o.날짜).slice(5))} · ${esc(o.옵션||'')} · 세후 ${N(p.내손에)} ${o.실수수료?'':'(추정)'}</div><div style="font-size:13px;color:#9BA1A5;margin-top:6px">${esc(o.결제시각||'')} 결제 ${W(o.실결제액||o.원가)} · 무신사 주문 ${esc(o.무신사주문번호||'-')}</div></div>`}).join('')||'<div class="empty">발송 대기 없음</div>';
+ document.getElementById('log').textContent=strip(D.log||'').split('\n').slice(-12).join('\n');
+}
+/* ── 현금 · 재고 · 자동 ── */
+function renderSide(){
+ const St=D.settlement||{}, C=(D.pnl||{}).cash||{}, RC=St.reconcile||{}, NV=(St.naver||{}).total||{}, pays=St.payouts||[], due=pays.filter(p=>p.상태!=='DONE'), paid=pays.filter(p=>p.상태==='DONE').reduce((a,p)=>a+(+p.지급예정액||0),0);
+ const row=(l,n,v,c)=>`<div class="row"><div class="l">${l}<small>${n}</small></div><div class="r n ${c||''}">${v}</div></div>`;
+ document.getElementById('cash').innerHTML=row('입금 완료',`스스 ${N(NV.입금완료||0)} / 쿠팡 ${N(paid)}`,W((NV.입금완료||0)+paid),'ok')+row('입금 예정',due.map(p=>`${p.정산일} ${N(p.지급예정액)}`).join(' · ')||'예정 없음',W(due.reduce((a,p)=>a+(+p.지급예정액||0),0)+(NV.입금예정||0)))+row('미수금 (인식 전)','후잉 정산예정금이 더 정확',W(RC.API기준_미수금||0))+row('지출','사입 + 광고 + 반품비','-'+W(C.지출||0),'bad')+row('순현금','입금 완료 − 지출',S(C.순현금||0),(C.순현금||0)<0?'bad':'ok');
+ const L=D.listings||[], r=D.registration||{}, stopped=L.filter(x=>x.stopped).length, bleed=L.filter(x=>x.bleed).length, optOut=L.filter(x=>(x.flags||[]).some(f=>f==='옵션품절')).length, allOut=L.filter(x=>(x.flags||[]).some(f=>f==='상품품절'||f==='전체품절')).length;
+ document.getElementById('invn').textContent=`${N(L.length)} 리스팅`;
+ const k=(a,b,c)=>`<div class="row" style="padding:9px 0;font-size:13.5px"><span>${a}</span><b class="m n ${c||''}" style="font-weight:600">${b}</b></div>`;
+ document.getElementById('stock').innerHTML=k('쿠팡 승인완료',N(r.cp_ok))+k('승인 대기 · 심사 · 반려',N((r.cp_all||0)-(r.cp_ok||0)),(r.cp_all||0)-(r.cp_ok||0)?'warn':'')+k('스스 리스팅',N(r.ss_all))+k('옵션 품절 있음',N(optOut))+k('전체 품절',N(allOut))+k('판매 중지',N(stopped),stopped?'warn':'')+k('지혈 중 (역마진 방어)',N(bleed),bleed?'bad':'');
+ const Wt=D.watch||{}, all=Wt.alerts||[], auto=all.filter(a=>a.처리==='자동'), info=all.filter(a=>a.처리==='정보'), by=Wt.auto_counts||{}; if(!Wt.auto_counts)auto.forEach(a=>by[a.kind]=(by[a.kind]||0)+1);
+ document.getElementById('auton').textContent=`AUTOMATED · ${N(Wt.auto_total??auto.length)}`;document.getElementById('infon').textContent=`참고 ${N(info.length)}`;
+ document.getElementById('chips').innerHTML=Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`<span class="chip"><span>${esc(k)}</span><b>${N(n)}</b></span>`).join('')||'<span class="chip"><span>없음</span><b>0</b></span>';
+}
+/* ── 차트 (SVG) ── */
+function chartMain(el){
+ const rows=((D.series||{}).rows||[]); if(!rows.length){el.innerHTML='<div class="empty">추이 데이터 없음</div>';return}
+ const Wd=1200,H=210,L=46,R=58,T=16,B=24,iw=Wd-L-R,ih=H-T-B,n=rows.length,bw=iw/n, omax=Math.max(1,...rows.map(r=>r.orders||0)), cv=rows.map(r=>r.cum_profit||0), cmax=Math.max(1,...cv.map(Math.abs));
+ const yo=v=>T+ih-(v/omax)*ih, yc=v=>T+ih/2-(v/cmax)*(ih/2); let g='';
+ [0,.5,1].forEach(f=>{const y=T+ih-f*ih;g+=`<line x1="${L}" x2="${Wd-R}" y1="${y}" y2="${y}" stroke="${f===0?'#2E3336':'#191C1E'}"/><text x="${L-8}" y="${y+4}" text-anchor="end" font-size="10" font-family="IBM Plex Mono,monospace" fill="#61686C">${Math.round(omax*f)}</text>`});
+ [-1,0,1].forEach(f=>{const y=yc(cmax*f);g+=`<text x="${Wd-R+8}" y="${y+4}" font-size="10" font-family="IBM Plex Mono,monospace" fill="#61686C">${f===0?'0':(f<0?'-':'')+Math.round(cmax/1000)+'k'}</text>`});
+ rows.forEach((r,i)=>{if(!r.orders)return;const x=L+bw*i+bw*.26,w=bw*.48;g+=`<rect x="${x.toFixed(1)}" y="${yo(r.orders).toFixed(1)}" width="${w.toFixed(1)}" height="${(ih-(yo(r.orders)-T)).toFixed(1)}" fill="#2F3A42"><title>${r.date} 주문 ${r.orders}</title></rect><text x="${(x+w/2).toFixed(1)}" y="${(yo(r.orders)-5).toFixed(1)}" text-anchor="middle" font-size="9.5" font-family="IBM Plex Mono,monospace" fill="#7C8388">${r.orders}</text>`});
+ g+=`<polyline points="${rows.map((r,i)=>`${(L+bw*i+bw/2).toFixed(1)},${yc(r.cum_profit||0).toFixed(1)}`).join(' ')}" fill="none" stroke="#6FB08A" stroke-width="2"/>`;
+ const last=rows[n-1], lx=L+bw*(n-1)+bw/2, ly=yc(last.cum_profit||0); g+=`<circle cx="${lx}" cy="${ly}" r="3.5" fill="#6FB08A"/><text x="${lx-8}" y="${ly-10}" text-anchor="end" font-size="12" font-weight="600" font-family="IBM Plex Mono,monospace" fill="${(last.cum_profit||0)<0?'#D9736B':'#6FB08A'}">${N(last.cum_profit||0)}</text>`;
+ rows.forEach((r,i)=>{if(i%5===0||i===n-1)g+=`<text x="${(L+bw*i+bw/2).toFixed(1)}" y="${H-7}" text-anchor="middle" font-size="10" font-family="IBM Plex Mono,monospace" fill="#61686C">${r.date.slice(5)}</text>`});
+ el.innerHTML=`<svg viewBox="0 0 ${Wd} ${H}" width="100%" style="display:block;margin-top:12px;overflow:visible">${g}</svg>`;
+}
+function chartReg(el,dl){
+ if(!dl.length){el.innerHTML='<div class="empty">등록 이력 없음</div>';return}
+ const Wd=620,H=150,L=38,R=10,T=14,B=22,iw=Wd-L-R,ih=H-T-B,n=dl.length,bw=iw/n, tot=x=>(x.cp||0)+(x.ss||0), mx=Math.max(1,...dl.map(tot)), y=v=>T+ih-(v/mx)*ih; let g='';
+ [0,.5,1].forEach(f=>{const yy=T+ih-f*ih;g+=`<line x1="${L}" x2="${Wd-R}" y1="${yy}" y2="${yy}" stroke="${f===0?'#2E3336':'#191C1E'}"/><text x="${L-7}" y="${yy+4}" text-anchor="end" font-size="10" font-family="IBM Plex Mono,monospace" fill="#7C8388">${Math.round(mx*f)}</text>`});
+ dl.forEach((x,i)=>{const t=tot(x);if(!t)return;const px=L+bw*i+bw*.2,w=bw*.6;g+=`<rect x="${px.toFixed(1)}" y="${y(t).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(2,ih-(y(t)-T)).toFixed(1)}" fill="#7FA0B8"><title>${x.date} 쿠팡 ${x.cp} · 스스 ${x.ss}</title></rect>`});
+ dl.forEach((x,i)=>{if(i%5===0||i===n-1)g+=`<text x="${(L+bw*i+bw/2).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="10" font-family="IBM Plex Mono,monospace" fill="#7C8388">${x.date.slice(5)}</text>`});
+ el.innerHTML=`<svg viewBox="0 0 ${Wd} ${H}" width="100%" style="display:block;margin-top:12px;overflow:visible">${g}</svg>`;
+}
+/* ── 손익 · 등록 · 배송 · 반품 ── */
+function renderTables(){
+ const P=D.pnl_v2||{}, pm=P.months||[], rowP=(x,l)=>`<tr><td class="l">${l}</td><td>${x.유효건}${x.반품?` <span class="tag bad">반품 ${x.반품}</span>`:''}</td><td>${N(x.유효매출)}</td><td>${N(x.세전)}</td><td>${N(x.부가세)}</td><td>${x.마케팅비?'-'+N(x.마케팅비):'-'}</td><td class="${(x.쇼핑순이익||0)<0?'bad':'ok'}" style="font-weight:600">${S(x.쇼핑순이익)}</td></tr>`;
+ document.getElementById('pnl').innerHTML=`<tr><th class="l">MONTH</th><th>N</th><th>매출</th><th>세전</th><th>부가세</th><th>마케팅</th><th>순이익</th></tr>`+pm.map(x=>rowP(x,x.month)).join('')+(P.total?rowP(P.total,'누적'):'');
+ document.getElementById('pnlNote').textContent=`세전 = 판매가 − 실결제 − 수수료 / 부가세 = 세전 ÷ 11 / 순이익 = 세후 − 반품 손실 − 마케팅비${P.total&&P.total.수수료추정건?` / 수수료 추정 ${P.total.수수료추정건}건`:''}`;
+ const r=D.registration||{}, dl=r.daily30||[], sum=(a,k)=>a.reduce((x,y)=>x+(y[k]||0),0), l7=sum(dl.slice(-7),'cp'), p7=sum(dl.slice(-14,-7),'cp'), avg7=l7/7, need=Math.max(0,(r.target||0)-(r.cp_ok||0)), days=avg7>0?Math.ceil(need/avg7):null;
+ document.getElementById('regn').textContent=`+${N(sum(dl,'cp'))} · 하루 평균 ${(sum(dl,'cp')/Math.max(1,dl.length)).toFixed(1)}`;
+ chartReg(document.getElementById('chReg'),dl);
+ const mini=(k,v,s,c)=>`<div><div class="k">${k}</div><div class="v n ${c||''}">${v}</div><div class="s">${s}</div></div>`;
+ document.getElementById('regStats').innerHTML=mini('오늘 신규',r.today_new==null?'-':'+'+r.today_new,'스냅샷 대비','ok')+mini('최근 7일','+'+N(l7),`전주 대비 ${p7?(l7>=p7?'▲':'▼')+N(Math.abs(l7-p7)):'-'}`)+mini(`${N(r.target)}까지`,days==null?'-':days+'일',`7일 속도 · 남은 ${N(need)}`,days&&days>45?'warn':'')+mini('남은 검색어',r.remaining_keywords??'-',r.ext_capped?'수집 상한 도달':'수집기가 처리 중');
+ const rs=r.rounds||[]; document.getElementById('rounds').innerHTML=`<tr><th class="l">오늘 차수</th><th>후보</th><th>GO</th><th>등록</th><th>판정</th></tr>`+(rs.map(x=>`<tr><td class="l">${x.round}차</td><td>${x.cand}</td><td>${x.go}</td><td class="${x.registered<x.go?'bad':''}" style="${x.registered<x.go?'font-weight:600':''}">${x.registered}</td><td>${x.at}</td></tr>`).join('')||'<tr><td class="l" colspan="5">오늘 차수 없음</td></tr>');
+ const A=D.delivery_acc||{}, M=A.metrics||{}, pc=m=>m&&m.n?`${Number(m.pct).toFixed(1)}%`:'-', cl=(m,t)=>!m||!m.n?'':(m.pct>=t?'ok':'bad');
+ document.getElementById('ful').innerHTML=mini('정시 출고',pc(M.ship),M.ship&&M.ship.n?`${M.ship.ok}/${M.ship.n}건 · 목표 99%`:'판정 없음',cl(M.ship,99))+mini('정시 배송',pc(M.delivery),M.delivery&&M.delivery.n?`${M.delivery.ok}/${M.delivery.n}건 · 목표 95%`:'판정 없음',cl(M.delivery,95))+mini('판정 대기',M.pending??0,'기한 전 · 배송 중');
+ document.getElementById('late').innerHTML=(A.late||[]).map(x=>`<div class="late"><span class="lb">${esc(x.판정||'지연')}</span><div style="min-width:0"><div style="font-size:13.5px">${esc(strip(x.상품))}</div><div class="m" style="font-size:10.5px;color:var(--mut2);margin-top:2px">기한 ${esc(x.기한)} · 실제 ${esc(x.실제)} · 원인 ${esc(x.원인)}</div></div></div>`).join('');
+ const cur=(D.money||{}).month||new Date().toISOString().slice(0,7), rt=((D.returns||{}).months||{})[cur]||{}, rn=(rt.반품||0)+(rt.교환||0), cnt=(D.money||{}).count||0, RR=(D.returns||{}).rows||[], vendorN=RR.filter(x=>String(x.날짜||'').startsWith(cur)&&x.귀책==='판매자').length;
+ document.getElementById('retn').textContent=`${cur.slice(5)}월 ${rn}건 / 주문 ${cnt}건`;
+ const row=(l,n,v,c)=>`<div class="row"><div class="l">${l}<small>${n}</small></div><div class="r n ${c||''}">${v}</div></div>`;
+ document.getElementById('returns').innerHTML=row(`${cur.slice(5)}월 반품`,`반품률 ${cnt?Math.round(rn/cnt*100):0}% · 판매자 귀책 ${vendorN}`,`${rn}건`,rn?'warn':'ok')+row('반품 손실','무신사 반품비 − 고객부담 '+N(rt.고객부담||0),'-'+W(rt.반품손실||0),(rt.반품손실||0)?'bad':'')+row('환불된 판매액','매출에서 제외',W(rt.금액||0))+row('진행 중',rt.진행중?'승인 대기':'승인 대기 없음',`${rt.진행중||0}건`,rt.진행중?'warn':'ok');
+}
+function renderBottom(){
+ const O=[...(D.orders||[])].sort((a,b)=>String(b.날짜).localeCompare(String(a.날짜))), RR=(D.returns||{}).rows||[], retBy={}; RR.forEach(x=>{if(x.주문번호)retBy[String(x.주문번호)]=x});
+ document.getElementById('ledgerP').style.display=pref.ledger?'':'none'; document.getElementById('listP').style.display=pref.list?'':'none';
+ const tot=O.reduce((a,o)=>a+(((o.손익||{}).내손에)||0),0), est=O.filter(o=>!o.실수수료).length;
+ document.getElementById('ledgerNote').textContent=`${O.length}건 · 세후 ${W(tot)} · 수수료 실측 ${O.length-est} / 추정 ${est}`;
+ document.getElementById('ledger').innerHTML=`<tr><th class="l">날짜</th><th class="l">마켓</th><th class="l">상품</th><th>판매가</th><th>실결제</th><th>수수료</th><th>세후</th></tr>`+O.map(o=>{const p=o.손익||{},ret=retBy[String(o.주문번호)],net=ret?-(ret.반품손실||0):p.내손에;
+  return `<tr><td class="l">${esc(String(o.날짜).slice(5))}</td><td class="l"><span class="tag ${o.마켓==='쿠팡'?'cp':'ss'}">${esc(o.마켓||'스스')}</span></td><td class="t">${esc(strip(o.상품명).slice(0,44))}<span> · ${esc(o.옵션||'')}</span>${ret?` <span class="tag bad">반품</span>`:''}</td><td>${N(o.판매가)}</td><td>${N(o.실결제액||o.원가)}</td><td>${N(o.실수수료||p.수수료)} <span class="src ${o.실수수료?'':'est'}">${o.실수수료?'실측':'추정'}</span></td><td class="${net<0?'bad':'ok'}" style="font-weight:600">${S(net)}</td></tr>`}).join('');
+ const L=D.listings||[], warn=x=>x.stopped||x.bleed||(x.flags||[]).some(f=>['옵션품절','상품품절','품절','재고임박','마진가드','원가상승'].includes(f)), rows=[...L.filter(warn),...L.filter(x=>!warn(x))].slice(0,60);
+ document.getElementById('listNote').textContent=`${N(L.length)} 리스팅 중 주의 ${N(L.filter(warn).length)} 우선 · 60종 표시`;
+ document.getElementById('list').innerHTML=`<tr><th class="l">상품</th><th>원가</th><th>쿠팡가</th><th>세전</th><th class="l">상태</th></tr>`+rows.map(x=>{const fl=x.stopped?'중지':x.bleed?'지혈':(x.flags||[])[0]||'', c=x.cp_net==null?'':x.cp_net<0?'bad':x.cp_net<4000?'warn':'ok';
+  return `<tr><td class="t">${esc(x.name)}</td><td>${N(x.cost)}</td><td>${x.cp_pid?N(x.cp_price):'-'}</td><td class="${c}" style="${c==='bad'?'font-weight:600':''}">${x.cp_net==null?'-':N(x.cp_net)}</td><td class="l"><span class="tag ${fl==='중지'||fl==='마진가드'?'bad':fl?'warn':''}">${esc(fl||'정상')}</span></td></tr>`}).join('');
+}
+function render(d){if(!d)return;D=d;renderTop();renderQueue();renderSide();chartMain(document.getElementById('chMain'));renderTables();renderBottom()}
+function load(manual){if(paused&&!manual)return;
+ if(REMOTE){fetch(API+'/data?key='+RKEY).then(r=>r.json()).then(rows=>{const st={};(rows||[]).forEach(x=>st[x.kind]=x);const d=(st.dashboard||{}).payload;if(!d){toast('아직 동기화된 데이터 없음');return}d._sync_age=st.dashboard.updated_at?Math.round((Date.now()-new Date(st.dashboard.updated_at))/1000):null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'));return}
+ fetch('/data'+(RKEY?'?key='+RKEY:'')).then(r=>r.json()).then(d=>{d._sync_age=null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'))}
+load();setInterval(()=>load(false),REMOTE?300000:60000);
+</script></body></html>

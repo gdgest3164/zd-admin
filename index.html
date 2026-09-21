@@ -265,8 +265,8 @@ function renderToday(){
  document.getElementById('dacc').innerHTML=kp('정시 출고',pc(M.ship),sub(M.ship,99),cls(M.ship,99),'택배 첫 스캔')+kp('정시 배송',pc(M.delivery),sub(M.delivery,95),cls(M.delivery,95),'배송 완료')+kp('판정 대기',M.pending??0,'출고 기한 전 · 배송 중','',A.ts?String(A.ts).slice(5,16):'');
  document.getElementById('dacc_late').innerHTML=(A.late||[]).map(r=>`<div class="note" style="margin:6px 0;border-left:3px solid var(--bad);padding-left:8px"><b>${esc(r.판정)}</b> ${esc(r.상품)} — 기한 ${esc(r.기한)} · 실제 ${esc(r.실제)} · 원인 ${esc(r.원인)}</div>`).join('');
  const all=w.alerts||[]; const auto=all.filter(a=>a.처리==='자동'), info=all.filter(a=>a.처리==='정보');
- const byKind={}; auto.forEach(a=>byKind[a.kind]=(byKind[a.kind]||0)+1);
- document.getElementById('auto_sum').textContent=`자동으로 처리된 것 ${auto.length}건 · 참고 ${info.length}건`;
+ const byKind=w.auto_counts||{}; if(!w.auto_counts)auto.forEach(a=>byKind[a.kind]=(byKind[a.kind]||0)+1);
+ document.getElementById('auto_sum').textContent=`자동으로 처리된 것 ${w.auto_total??auto.length}건 · 참고 ${info.length}건`;
  document.getElementById('auto').innerHTML=`<div class="chips">${Object.entries(byKind).map(([k,n])=>`<span class="chip"><span class="k">${esc(k)}</span>${n}</span>`).join('')}</div>`+
   [...info,...auto.slice(0,40)].map(a=>`<div class="note" style="margin:6px 0;border-left:3px solid var(--line);padding-left:8px"><b>${esc(a.kind)}</b> ${esc(strip(a.name))} — ${esc(strip(a.msg))}</div>`).join('')+(auto.length>40?`<div class="note">… 외 ${auto.length-40}건</div>`:'');
  document.getElementById('log').textContent=strip(D.log||'');
@@ -412,7 +412,7 @@ function load(manual){
  }
 }
 /* ── 새 버전 자동 반영: 배포 뒤 폰이 옛 페이지를 캐시해 '그래프가 안 보이는' 문제 방지 (2026-09-08) ── */
-const VERSION='ZDV-'+'20260921-1726';
+const VERSION='ZDV-'+'20260921-2354';
 function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 showTab(localStorage.getItem('zd2_tab')||'today');
 load();setInterval(()=>{if(!paused)load()},60000);setTimeout(checkVersion,5000);setInterval(checkVersion,300000);
