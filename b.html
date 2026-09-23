@@ -204,9 +204,9 @@ function renderFunnel(){
 }
 /* ── 손익 · 등록 · 배송 · 반품 ── */
 function renderTables(){
- const P=D.pnl_v2||{}, pm=P.months||[], rowP=(x,l)=>`<tr><td class="l">${l}</td><td>${x.유효건}${x.반품?` <span class="tag bad">반품 ${x.반품}</span>`:''}</td><td>${N(x.유효매출)}</td><td>${N(x.세전)}</td><td>${N(x.부가세)}</td><td>${x.마케팅비?'-'+N(x.마케팅비):'-'}</td><td class="${(x.쇼핑순이익||0)<0?'bad':'ok'}" style="font-weight:600">${S(x.쇼핑순이익)}</td></tr>`;
- document.getElementById('pnl').innerHTML=`<tr><th class="l">MONTH</th><th>N</th><th>매출</th><th>세전</th><th>부가세</th><th>마케팅</th><th>순이익</th></tr>`+pm.map(x=>rowP(x,x.month)).join('')+(P.total?rowP(P.total,'누적'):'');
- document.getElementById('pnlNote').textContent=`세전 = 판매가 − 실결제 − 수수료 / 부가세 = 세전 ÷ 11 / 순이익 = 세후 − 반품 손실 − 마케팅비${P.total&&P.total.수수료추정건?` / 수수료 추정 ${P.total.수수료추정건}건`:''}`;
+ const P=D.pnl_v2||{}, pm=P.months||[], rowP=(x,l)=>`<tr><td class="l">${l}</td><td>${x.유효건}${x.반품?` <span class="tag bad">반품 ${x.반품}</span>`:''}</td><td>${x.수량??x.유효건}</td><td>${N(x.유효매출)}</td><td>${N(x.세전)}</td><td>${N(x.부가세)}</td><td>${x.마케팅비?'-'+N(x.마케팅비):'-'}</td><td class="${(x.쇼핑순이익||0)<0?'bad':'ok'}" style="font-weight:600">${S(x.쇼핑순이익)}</td><td>${N(x.개당세후??x.건당세후)}</td></tr>`;
+ document.getElementById('pnl').innerHTML=`<tr><th class="l">MONTH</th><th>N</th><th>수량</th><th>매출</th><th>세전</th><th>부가세</th><th>마케팅</th><th>순이익</th><th>개당</th></tr>`+pm.map(x=>rowP(x,x.month)).join('')+(P.total?rowP(P.total,'누적'):'');
+ document.getElementById('pnlNote').textContent=`세전 = 판매가 − 실결제 − 수수료 / 부가세 = 세전 ÷ 11 / 순이익 = 세후 − 반품 손실 − 마케팅비 / 개당 = (세후 − 반품 손실) ÷ 수량${P.total&&P.total.수수료추정건?` / 수수료 추정 ${P.total.수수료추정건}건`:''}`;
  const r=D.registration||{}, dl=r.daily30||[], sum=(a,k)=>a.reduce((x,y)=>x+(y[k]||0),0), l7=sum(dl.slice(-7),'cp'), p7=sum(dl.slice(-14,-7),'cp'), avg7=l7/7, need=Math.max(0,(r.target||0)-(r.cp_ok||0)), days=avg7>0?Math.ceil(need/avg7):null;
  document.getElementById('regn').textContent=`+${N(sum(dl,'cp'))} · 하루 평균 ${(sum(dl,'cp')/Math.max(1,dl.length)).toFixed(1)}`;
  chartReg(document.getElementById('chReg'),dl);
