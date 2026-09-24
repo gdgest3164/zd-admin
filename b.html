@@ -46,7 +46,7 @@ details summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(
 #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;font-family:var(--mono);font-size:12px;display:none;z-index:9}
 @media(max-width:640px){.tile .v{font-size:26px}.stamp{display:block;margin:2px 0 0}}
 </style></head><body>
-<div class="hd"><div><span class="brand">ZERODAILY</span><span class="stamp" id="stamp">CONTROL · —</span></div><div class="rail" id="rail"></div></div>
+<div class="hd"><div><span class="brand">ZERODAILY</span><span class="stamp" id="stamp">CONTROL · —</span><a class="stamp" id="archLink" href="arch.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:3px">구조도</a></div><div class="rail" id="rail"></div></div>
 <div class="tiles" id="tiles"></div>
 <div class="g2">
  <div class="pane"><div class="ph"><b>DECISION QUEUE</b><span id="qn" class="bad"></span></div><div id="queue"></div></div>
@@ -240,4 +240,5 @@ function load(manual){if(paused&&!manual)return;
 const VERSION='ZDV-'+'20260922-0053';
 function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 load();setInterval(()=>load(false),REMOTE?300000:60000);if(REMOTE){checkVersion();setInterval(checkVersion,600000)}
-</script></body></html>
+</script><script>try{document.getElementById('archLink').href=(location.hostname.endsWith('github.io')?'arch.html':'/arch'+location.search)}catch(e){}</script>
+</body></html>
