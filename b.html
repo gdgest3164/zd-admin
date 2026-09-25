@@ -51,7 +51,7 @@ details summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(
 <div class="g2">
  <div class="pane"><div class="ph"><b>DECISION QUEUE</b><span id="qn" class="bad"></span></div><div id="queue"></div></div>
  <div class="pane col">
-  <div><div class="ph"><b>CASH POSITION</b><span>정산 API · 후잉</span></div><div id="cash"></div></div>
+  <div><div class="ph"><b>CASH POSITION</b><span>정산현황.json · 사업비용.csv</span></div><div id="cash"></div></div>
   <div><div class="ph"><b>INVENTORY</b><span id="invn"></span></div><div id="stock"></div></div>
   <div><div class="ph"><b id="auton">AUTOMATED</b><span id="infon"></span></div><div class="chips" id="chips"></div></div>
  </div>
@@ -76,6 +76,7 @@ details summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(
 const REMOTE=location.hostname.endsWith('github.io'), RKEY=new URLSearchParams(location.search).get('key'), API='https://gvhbwbvgwnfqpqyimizi.supabase.co/functions/v1/admin';
 const W=n=>(n==null||n==='')?'-':Number(n).toLocaleString('ko-KR')+'원', N=n=>(n==null||n==='')?'-':Number(n).toLocaleString('ko-KR'), S=(v,neg)=>(v<0?'-':'')+W(Math.abs(v||0));
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])), strip=s=>String(s??'').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}\u{FE0F}\u{200D}]/gu,'').replace(/\s{2,}/g,' ').trim();
+const kst=(back=0)=>new Date(Date.now()+9*3600e3-back*864e5).toISOString().slice(0,10); /* KST 날짜 (UTC toISOString 은 00~09시에 어제가 된다) */
 const age=s=>s==null?'없음':s<60?`${s}초`:s<3600?`${Math.floor(s/60)}분`:`${Math.floor(s/3600)}시간 ${Math.floor(s%3600/60)}분`;
 const FEE={'쿠팡':0.1155,'스스':0.067}; let D=null, paused=false, pref=JSON.parse(localStorage.getItem('zdb')||'{"dense":false,"ledger":true,"list":true}');
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',3500)}
@@ -85,20 +86,21 @@ document.addEventListener('focusin',e=>{if(e.target.tagName==='INPUT')paused=tru
 /* ── 헤더 · 타일 ── */
 function renderTop(){
  const v=D.vitals||{}, r=D.registration||{}, st=(s,w,b)=>s==null?'bad':s>b?'bad':s>w?'warn':'';
+ const fwCyc=Math.max(3300,v.full_watch_sec||0)+600; /* 전체감시 주기 = 55분 간격(감시루프.sh) 또는 실측 소요 중 긴 쪽 + 루프 틱 여유 */
  document.getElementById('stamp').textContent=`CONTROL · ${(D.vitals||{}).generated_at||''} KST`;
- const pills=[[`감시루프 ${age(v.loop_age)}`,st(v.loop_age,600,2100)],[r.ext_capped?`수집기 상한 ${N(r.ext_cap)}p`:`수집기 ${age(v.ext_age)} · ${N(r.ext_loads_today)}p`,r.ext_capped?'':st(v.ext_age,900,3600)],[`전체감시 ${age(v.full_watch_age)}`,st(v.full_watch_age,3900,7200)],[`폰 동기화 ${D._sync_age==null?'로컬':age(D._sync_age)}`,D._sync_age==null?'':D._sync_age>900?'bad':D._sync_age>420?'warn':'']];
+ const pills=[[`감시루프 ${age(v.loop_age)}`,st(v.loop_age,600,2100)],[r.ext_capped?`수집기 상한 ${N(r.ext_cap)}p`:`수집기 ${age(v.ext_age)} · ${N(r.ext_loads_today)}p`,r.ext_capped?'':st(v.ext_age,900,3600)],[`전체감시 ${age(v.watch_age)} 전 완료`,st(v.watch_age,1.25*fwCyc,2*fwCyc)],[`폰 동기화 ${D._sync_age==null?'로컬':age(D._sync_age)}`,D._sync_age==null?'':D._sync_age>900?'bad':D._sync_age>420?'warn':'']];
  document.getElementById('rail').innerHTML=pills.map(([l,c])=>`<span class="pill ${c}">${esc(l)}</span>`).join('')+`<span class="pill btn" onclick="setPref('dense',!pref.dense)">${pref.dense?'큐 상세':'큐 간략'}</span><span class="pill btn" onclick="load(true)">새로고침</span>`;
- const P=D.pnl_v2||{}, cur=(D.money||{}).month||new Date().toISOString().slice(0,7), pm=(P.months||[]).find(x=>x.month===cur)||{}, O=D.orders||[], today=(D.pipeline||{}).today||new Date().toISOString().slice(0,10);
- const d7=new Date(Date.now()-7*864e5).toISOString().slice(0,10), d14=new Date(Date.now()-14*864e5).toISOString().slice(0,10);
- const n7=O.filter(o=>String(o.날짜)>=d7).length, n14=O.filter(o=>String(o.날짜)>=d14&&String(o.날짜)<d7).length;
- const M=(D.delivery_acc||{}).metrics||{}, ship=M.ship||{}, C=(D.pnl||{}).cash||{}; const dl=r.daily30||[], avg7=dl.slice(-7).reduce((a,x)=>a+(x.cp||0),0)/7, need=Math.max(0,(r.target||0)-(r.cp_ok||0)), days=avg7>0?Math.ceil(need/avg7):null;
+ const P=D.pnl_v2||{}, cur=(D.money||{}).month||kst().slice(0,7), pm=(P.months||[]).find(x=>x.month===cur)||{}, O=D.orders||[], today=kst();
+ const inR=(o,a,b)=>{const d=String(o.날짜||'').slice(0,10);return d>=kst(a)&&d<=kst(b)}; /* 7일 = 오늘−6~오늘, 전주 = 오늘−13~오늘−7 (KST) */
+ const n7=O.filter(o=>inR(o,6,0)).length, n14=O.filter(o=>inR(o,13,7)).length;
+ const M=(D.delivery_acc||{}).metrics||{}, ship=M.ship||{}, minN=((D.delivery_acc||{}).targets||{}).min_n||20, few=ship.n&&ship.n<minN, C=(D.pnl||{}).cash||{}, estTxt=[pm.수수료추정건?`수수료 ${pm.수수료추정건}`:'',pm.반품비미확정?`반품비 미확정 ${pm.반품비미확정}`:''].filter(Boolean).join(' · '); const dl=r.daily30||[], avg7=dl.slice(-7).reduce((a,x)=>a+(x.cp||0),0)/7, need=Math.max(0,(r.target||0)-(r.cp_ok||0)), days=avg7>0?Math.ceil(need/avg7):null;
  const tile=(k,src,est,v,s,c,pct,bc)=>`<div class="tile"><div class="k"><span>${k}</span><span class="src ${est?'est':''}">${src}</span></div><div class="v n ${c}">${v}</div><div class="s">${s}</div><div class="bar"><i style="width:${Math.max(0,Math.min(100,pct))}%;background:${bc||'var(--acc)'}"></i></div></div>`;
  document.getElementById('tiles').innerHTML=
-  tile(`${cur.slice(5)}월 순이익`,pm.수수료추정건?`추정 ${pm.수수료추정건}`:'실측',!!pm.수수료추정건,N(pm.쇼핑순이익??0),`세후 ${N(pm.세후)} − 반품 ${N(pm.반품손실||0)} − 광고 ${N(pm.마케팅비||0)}`,(pm.쇼핑순이익||0)<0?'bad':'',Math.min(100,(pm.쇼핑순이익||0)/4e6*100),'var(--ok)')+
+  tile(`${cur.slice(5)}월 순이익`,estTxt?`추정: ${estTxt}`:'실측',!!estTxt,N(pm.쇼핑순이익??0),`세후 ${N(pm.세후)} − 반품 ${N(pm.반품손실||0)} − 광고 ${N(pm.마케팅비||0)}`,(pm.쇼핑순이익||0)<0?'bad':'',Math.min(100,(pm.쇼핑순이익||0)/4e6*100),'var(--ok)')+
   tile('오늘 주문','실측',0,O.filter(o=>String(o.날짜||'').startsWith(today)).length,`7일 ${n7}건 · 전주 ${n14}건 · 누적 ${O.length}`,'',n7/40*100)+
   tile('쿠팡 리스팅','실측',0,N(r.cp_ok),`${N(r.target)}까지 ${days==null?'-':days+'일'} · 오늘 +${r.today_new??'-'}`,'',r.target?(r.cp_ok||0)/r.target*100:0)+
-  tile('정시 출고',ship.n?`표본 ${ship.n}`:'없음',0,ship.n?`${Number(ship.pct).toFixed(1)}%`:'-',ship.n?`${ship.ok}/${ship.n}건 · 목표 99%${ship.pct<99?' 미달':''}`:'판정된 주문 없음',ship.n&&ship.pct<99?'bad':'ok',ship.pct||0,ship.pct<99?'var(--bad)':'var(--ok)')+
-  tile('순현금','후잉',0,S(C.순현금||0),`입금 ${N(C.입금||C.입금완료||0)} − 지출 ${N(C.지출||0)}`,(C.순현금||0)<0?'bad':'ok',100,(C.순현금||0)<0?'var(--bad)':'var(--ok)');
+  tile('정시 출고',ship.n?`표본 ${ship.n}`:'없음',0,ship.n?`${Number(ship.pct).toFixed(1)}%`:'-',!ship.n?'판정된 주문 없음':few?`표본 부족 (${ship.n}/${minN}) · ${ship.ok}/${ship.n}건`:`${ship.ok}/${ship.n}건 · 목표 99%${ship.pct<99?' 미달':''}`,few?'':ship.n&&ship.pct<99?'bad':'ok',ship.pct||0,few?'var(--mut2)':ship.pct<99?'var(--bad)':'var(--ok)')+
+  tile('순현금','정산API·장부',0,S(C.순현금||0),`입금 ${N(C.입금완료||0)} − 지출 ${N(C.지출||0)} · 예상 ${S(C.예상순현금||0)} (추정 포함)`,(C.순현금||0)<0?'bad':'ok',100,(C.순현금||0)<0?'var(--bad)':'var(--ok)');
 }
 /* ── 결정 큐 (관제탑_v2 와 같은 규칙·같은 액션) ── */
 function queueAct(kind,payload){if(!REMOTE){toast('승인·실행은 폰 관제탑에서 (로컬은 조회 전용)');return}
@@ -124,36 +126,56 @@ function orderCard(o,i){
  else if(isBlocked){sev='bad';const b=o.이행불가||{},sold=/품절/.test(b.사유||'');head=`무신사에서 담을 수 없음 — ${strip(o.상품명).slice(0,36)}`;body=`${b.사유||''} (${b.시각||''})`;
   act=`${sold?`<button class="pri bad" onclick="cancelOrder('${o.productOrderId}','품절')">주문 취소 요청 (재고 없음)</button>`:`<a class="pri acc" href="${mu}" target="_blank">무신사에서 옵션 확인</a>`}<button class="ghost" onclick="mark('${o.productOrderId}','신규')">다시 담기</button><button class="ghost" onclick="mark('${o.productOrderId}','발주완료')">직접 발주함</button>`}
  else if(isCW){sev='bad';const q=o.취소요청||{};head=`고객 취소 요청 — ${strip(o.상품명).slice(0,36)}`;body=`${q.출처||''} ${q.시각||''} · 무신사 주문 ${o.무신사주문번호||''} 결제 ${W(o.실결제액)}`;act=`<button class="pri bad" onclick="cancelApprove('${o.productOrderId}')">취소 승인 — 무신사 환불 + 마켓 승인</button>`}
+ if(!head){head=`상태 확인 필요 (${st}) — ${strip(o.상품명).slice(0,36)||o.productOrderId}`;body=`${o.날짜||''} · 판매가 ${W(o.판매가)}`}   /* 제목 없는 카드 금지 (2026-09-25 감사) */
  const full=`${o.수령인} ${o.연락처}\n${o.주소}\n${o.배송메모||''}`.trim();
  return `<div class="q"><div class="no">${String(i).padStart(2,'0')}</div><div style="min-width:0"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="sev ${sev}">${sev==='bad'?'치명':'주의'}</span><span class="head">${esc(head)}</span><span class="tag ${o.마켓==='쿠팡'?'cp':'ss'}">${esc(o.마켓||'스스')}</span></div><div class="body">${esc(body)}</div><div class="act">${act}<button class="ghost" onclick='copy(${JSON.stringify(full)},"배송지 복사")'>배송지 복사</button><span class="ref">${esc(o.productOrderId)}</span></div></div></div>`;
 }
-function alertCard(a,i){
- const fail=a.처리==='실패', sev=fail||/권리|출고지연|망장애|계정/.test(a.kind)?'bad':'warn'; let btn='';
+function alertCard(a,i,info){
+ const fail=a.처리==='실패', sev=info?'':fail||/권리|출고지연|망장애|계정/.test(a.kind)?'bad':'warn'; let btn='';
  if(a.승인가능==='musinsa_return')btn=`<button class="pri acc" onclick="returnApprove('${esc(a.no)}')">무신사 반품 신청 승인</button>`;
  if(a.승인가능==='return_complete')btn=`<button class="pri acc" onclick="returnComplete('${esc(a.no)}')">쿠팡 반품 완료 승인</button>`;
  if(a.승인가능==='brand_withdraw')btn=`<button class="pri bad" onclick="brandWithdraw('${esc(a.no)}')">브랜드 전량 철수</button>`;
  if(a.승인가능==='cs_reply')btn=`<button class="pri acc" onclick="csReply('${esc(a.no)}')">답변 전송</button><button class="ghost" onclick="csReject('${esc(a.no)}')">반려 — 다시 쓰게</button>`;
- return `<div class="q"><div class="no">${String(i).padStart(2,'0')}</div><div style="min-width:0"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="sev ${sev}">${sev==='bad'?'치명':'주의'}</span><span class="head">${esc(strip(a.name||a.kind))}</span><span class="tag">${esc(a.kind)}${fail?' · 자동처리 실패':''}</span></div><div class="body">${esc(strip(a.msg))}</div><div class="act">${btn}<button class="ghost" onclick='copy(${JSON.stringify(strip(a.msg))},"내용 복사")'>내용 복사</button><span class="ref">${esc(a.no)} · ${esc(a.time||'')}</span></div></div></div>`;
+ return `<div class="q"><div class="no">${String(i).padStart(2,'0')}</div><div style="min-width:0"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="sev ${sev}">${info?'정보':sev==='bad'?'치명':'주의'}</span><span class="head">${esc(strip(a.name||a.kind))}</span><span class="tag">${esc(a.kind)}${fail?' · 자동처리 실패':''}</span></div><div class="body">${esc(strip(a.msg))}</div><div class="act">${btn}<button class="ghost" onclick='copy(${JSON.stringify(strip(a.msg))},"내용 복사")'>내용 복사</button><span class="ref">${esc(a.no)} · ${esc(a.time||'')}</span></div></div></div>`;
 }
 function renderQueue(){
- const O=D.orders||[], pend=O.filter(o=>!String(o.상태||'').startsWith('발송완료')), dec=pend.filter(o=>o.상태!=='발주완료'), inflight=pend.filter(o=>o.상태==='발주완료');
- const al=((D.watch||{}).alerts||[]).filter(a=>a.처리==='판단필요'||a.처리==='실패'); let i=0;
- document.getElementById('qn').textContent=`${String(dec.length+al.length).padStart(2,'0')} 대기`;
+ /* 2026-09-25 감사: 끝난 주문(취소·발송·발주완료)은 결정 카드에서 뺀다 · 차수미완료는 1장으로 · 망장애는 최근 30분 오류 0 이면 해결됨 · 연휴준비류는 정보 */
+ const done=s=>{s=String(s||'');return s.startsWith('발송완료')||s==='발주완료'||(s.startsWith('취소')&&s!=='취소대기')};
+ const O=D.orders||[], dec=O.filter(o=>!done(o.상태)), inflight=O.filter(o=>o.상태==='발주완료').sort((a,b)=>(b.출고기한초과||0)-(a.출고기한초과||0));
+ const INFO_KINDS=['연휴준비'], NR=D.net_recent||{}, NH=NR.hosts||{}, netOk=a=>a.kind==='망장애'&&NR.minutes&&!NR.error&&!((NH[a.no]||{}).err);
+ const al0=((D.watch||{}).alerts||[]).filter(a=>a.처리==='판단필요'||a.처리==='실패');
+ const rounds=al0.filter(a=>a.kind==='차수미완료'), netRes=al0.filter(netOk), info=al0.filter(a=>INFO_KINDS.includes(a.kind));
+ const al=al0.filter(a=>a.kind!=='차수미완료'&&!netOk(a)&&!INFO_KINDS.includes(a.kind)).map(a=>a.kind==='망장애'&&NH[a.no]?{...a,msg:`${a.msg}\n최근 ${NR.minutes}분: 호출 ${N(NH[a.no].n)}회 중 오류 ${N(NH[a.no].err)}회 (마지막 ${NH[a.no].last_err||'-'})`}:a);
+ if(rounds.length){const gn=a=>+((String(a.msg).match(/GO 미등록 (\d+)/)||[])[1]||0), tot=rounds.reduce((x,a)=>x+gn(a),0), last=rounds.map(a=>a.time||'').sort().pop();
+  al.push({kind:'차수미완료',처리:'판단필요',no:`${rounds.length}개 차수`,time:last,name:`등록 미완료 ${rounds.length}개 차수 — GO 미등록 합계 ${tot}종`,msg:rounds.map(a=>`${String(a.no).replace('차수:','')}차 ${gn(a)}`).join(' · ')+`\n각 차수 재시도 3회 실패. 쿠팡 거절 사유는 차수 로그의 HTTP 오류 줄 (사유가 기록된 차수: ${rounds.filter(a=>/거절 사유: /.test(a.msg)).map(a=>String(a.no).replace('차수:','')+'차').join(', ')||'없음'})`})}
+ if(netRes.length)info.push({kind:'망장애',처리:'정보',no:netRes.map(a=>a.no).join(', '),time:NR.at,name:`네트워크 장애 해결됨 ${NR.at} — ${netRes.length}개 호스트`,msg:`최근 ${NR.minutes}분 연결 실패 0회 (계량 원본 logs/계량): `+netRes.map(a=>`${a.no} 호출 ${N((NH[a.no]||{}).n||0)}회`).join(' · ')+`\n원 카드(감시상태.json)는 계량.py 점검이 최근 120분 기준으로 지운다`+(netRes.some(a=>!(NH[a.no]||{}).n)?` — 최근 120분 호출이 없는 호스트는 자동으로 안 지워진다 (30분 호출 0회: ${netRes.filter(a=>!(NH[a.no]||{}).n).map(a=>a.no).join(', ')})`:'')});
+ let i=0;
+ document.getElementById('qn').textContent=`판단 ${dec.length+al.length} · 정보 ${info.length}`;
  document.getElementById('queue').className=pref.dense?'dense':'';
- document.getElementById('queue').innerHTML=(dec.map(o=>orderCard(o,++i)).join('')+al.map(a=>alertCard(a,++i)).join(''))||'<div class="empty">결정할 것 없음 — 시스템이 정상 운영 중</div>';
- document.getElementById('ifn').textContent=`IN FLIGHT · ${inflight.length}`;
- document.getElementById('inflight').innerHTML=inflight.map(o=>{const p=o.손익||{};return `<div style="padding:14px 0;border-bottom:1px solid var(--line2)"><div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><span style="font-size:14px;font-weight:600">${esc(strip(o.상품명).slice(0,44))}</span><span class="m n" style="font-size:14px;font-weight:600;white-space:nowrap">${W(o.판매가)}</span></div><div class="steps"><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div><div class="m" style="font-size:10.5px;color:var(--mut2);margin-top:7px">${esc(String(o.날짜).slice(5))} · ${esc(o.옵션||'')} · 세후 ${N(p.내손에)} ${o.실수수료?'':'(추정)'}</div><div style="font-size:13px;color:#9BA1A5;margin-top:6px">${esc(o.결제시각||'')} 결제 ${W(o.실결제액||o.원가)} · 무신사 주문 ${esc(o.무신사주문번호||'-')}</div></div>`}).join('')||'<div class="empty">발송 대기 없음</div>';
+ document.getElementById('queue').innerHTML=(dec.map(o=>orderCard(o,++i)).join('')+al.map(a=>alertCard(a,++i)).join('')+info.map(a=>alertCard(a,++i,true)).join(''))||'<div class="empty">결정할 것 없음 — 시스템이 정상 운영 중</div>';
+ const lateN=inflight.filter(o=>o.출고기한초과>0).length;
+ document.getElementById('ifn').textContent=`IN FLIGHT · ${inflight.length}${lateN?` · 출고기한 초과 ${lateN}`:''}`;
+ document.getElementById('inflight').innerHTML=inflight.map(o=>{const p=o.손익||{}, lt=o.출고기한초과>0?`<div style="margin-top:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="tag ${o.메모?'warn':'bad'}">출고기한 초과 ${o.출고기한초과}일</span><span class="m" style="font-size:10.5px;color:var(--mut2)">기한 ${esc(o.출고기한)} · 송장 없음</span>${o.메모?`<span style="font-size:12.5px;color:var(--warn)">${esc(strip(o.메모))}</span>`:''}</div>`:'';return `<div style="padding:14px 0;border-bottom:1px solid var(--line2)"><div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><span style="font-size:14px;font-weight:600">${esc(strip(o.상품명).slice(0,44))}</span><span class="m n" style="font-size:14px;font-weight:600;white-space:nowrap">${W(o.판매가)}</span></div>${lt}<div class="steps"><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div><div class="m" style="font-size:10.5px;color:var(--mut2);margin-top:7px">${esc(String(o.날짜).slice(5))} · ${esc(o.옵션||'')} · 세후 ${N(p.내손에)} ${o.실수수료?'':'(추정)'}</div><div style="font-size:13px;color:#9BA1A5;margin-top:6px">${esc(o.결제시각||'')} 결제 ${W(o.실결제액||o.원가)} · 무신사 주문 ${esc(o.무신사주문번호||'-')}</div></div>`}).join('')||'<div class="empty">발송 대기 없음</div>';
  document.getElementById('log').textContent=strip(D.log||'').split('\n').slice(-12).join('\n');
 }
 /* ── 현금 · 재고 · 자동 ── */
 function renderSide(){
- const St=D.settlement||{}, C=(D.pnl||{}).cash||{}, RC=St.reconcile||{}, NV=(St.naver||{}).total||{}, pays=St.payouts||[], due=pays.filter(p=>p.상태!=='DONE'), paid=pays.filter(p=>p.상태==='DONE').reduce((a,p)=>a+(+p.지급예정액||0),0);
+ /* 현금 (2026-09-25 감사 재작성) — 출처 정산현황.json(쿠팡·네이버 정산 API) + 사업비용.csv + 주문목록.json. 추정은 '구매확정 전' 한 줄만 */
+ const C=(D.pnl||{}).cash||{}, dueR=C.입금예정_행||[], KC=C.지출_카드||{}, cd=k=>KC[k]||{금액:0,건수:0}, est='<span class="src est" style="margin-left:6px">추정</span>';
  const row=(l,n,v,c)=>`<div class="row"><div class="l">${l}<small>${n}</small></div><div class="r n ${c||''}">${v}</div></div>`;
- document.getElementById('cash').innerHTML=row('입금 완료',`스스 ${N(NV.입금완료||0)} / 쿠팡 ${N(paid)}`,W((NV.입금완료||0)+paid),'ok')+row('입금 예정',due.map(p=>`${p.정산일} ${N(p.지급예정액)}`).join(' · ')||'예정 없음',W(due.reduce((a,p)=>a+(+p.지급예정액||0),0)+(NV.입금예정||0)))+row('미수금 (인식 전)','후잉 정산예정금이 더 정확',W(RC.API기준_미수금||0))+row('지출','사입 + 광고 + 반품비','-'+W(C.지출||0),'bad')+row('순현금','입금 완료 − 지출',S(C.순현금||0),(C.순현금||0)<0?'bad':'ok');
- const L=D.listings||[], r=D.registration||{}, stopped=L.filter(x=>x.stopped).length, bleed=L.filter(x=>x.bleed).length, optOut=L.filter(x=>(x.flags||[]).some(f=>f==='옵션품절')).length, allOut=L.filter(x=>(x.flags||[]).some(f=>f==='상품품절'||f==='전체품절')).length;
+ const unv=dueR.filter(d=>d.미검증), bill=Object.entries(C.우리카드_결제예정||{}).map(([d,a])=>`${d.slice(5).replace('-','/')} ${N(a)}`).join(' · ');
+ document.getElementById('cash').innerHTML=row('입금 완료',`스스 실입금 ${N(C.입금완료_스스||0)} · 쿠팡 지급 완료 ${N(C.입금완료_쿠팡||0)}`,W(C.입금완료||0),'ok')
+  +row('입금 예정 · 쿠팡 API'+(unv.length?`<span class="src est" style="margin-left:6px">차감 미검증 — ${unv[0].정산일.slice(5).replace('-','/')} 입금으로 확인</span>`:''),(dueR.map(d=>`${d.정산일.slice(5)} ${d.유형==='RESERVE'?'최종':'주간'} ${N(d.금액)} — API 지급예정 ${N(d.지급예정)} · 차감 ${N(d.차감)}`).join('<br>')||'예정 없음')+(C.입금예정_스스?`<br>스스 입금예정 ${N(C.입금예정_스스)}`:''),W(C.입금예정||0))
+  +row('인식 후 지급행 미생성',`구매확정 ${N(C.지급행미생성_건수||0)}건 — 쿠팡 지급 행이 아직 안 생김 (정산 API ${esc(String(C.정산현황_갱신||'').slice(5))} 기준)`,W(C.지급행미생성||0))
+  +row('구매확정 전'+est,`쿠팡 ${N(C.구매확정전_건수||0)}건 판매가 × (1 − 11.55%) · 반품·취소·반품 진행 제외`,W(C.구매확정전_추정||0))
+  +row('지출',`토스 사업자 체크 ${N(cd('토스 사업자 체크').금액)} (${cd('토스 사업자 체크').건수}건) · 우리카드 ${N(cd('우리카드').금액)} (${cd('우리카드').건수}건${bill?`, 결제 ${bill}`:''}) · 미분류 ${N(cd('미분류').금액)} (${cd('미분류').건수}건)`,'-'+W(C.지출||0),'bad')
+  +row('순현금','입금 완료 − 지출',S(C.순현금||0),(C.순현금||0)<0?'bad':'ok')
+  +row('예상 순현금'+est,'순현금 + 입금 예정 + 지급행 미생성 + 구매확정 전',S(C.예상순현금||0),(C.예상순현금||0)<0?'bad':'ok');
+ const L=D.listings||[], r=D.registration||{}, cs=r.cp_status||null, stopped=L.filter(x=>x.stopped).length, bleedHist=L.filter(x=>x.bleed).length, bleedAct=L.filter(x=>x.bleed_active).length, neg=L.filter(x=>typeof x.cp_net==='number'&&x.cp_net<0).length, optOut=L.filter(x=>(x.flags||[]).some(f=>f==='옵션품절')).length, allOut=L.filter(x=>(x.flags||[]).includes('품절')).length;
  document.getElementById('invn').textContent=`${N(L.length)} 리스팅`;
  const k=(a,b,c)=>`<div class="row" style="padding:9px 0;font-size:13.5px"><span>${a}</span><b class="m n ${c||''}" style="font-weight:600">${b}</b></div>`;
- document.getElementById('stock').innerHTML=k('쿠팡 승인완료',N(r.cp_ok))+k('승인 대기 · 심사 · 반려',N((r.cp_all||0)-(r.cp_ok||0)),(r.cp_all||0)-(r.cp_ok||0)?'warn':'')+k('스스 리스팅',N(r.ss_all))+k('옵션 품절 있음',N(optOut))+k('전체 품절',N(allOut))+k('판매 중지',N(stopped),stopped?'warn':'')+k('지혈 중 (역마진 방어)',N(bleed),bleed?'bad':'');
+ const SL={'승인반려':'반려','승인대기중':'승인대기'}, cpRest=cs?Object.entries(cs).filter(([s])=>s!=='승인완료').sort((a,b)=>b[1]-a[1]).map(([s,n])=>k(`쿠팡 ${SL[s]||s}`,N(n),s==='승인반려'?'bad':n?'warn':'')).join(''):k('승인 대기 · 심사 · 반려',N((r.cp_all||0)-(r.cp_ok||0)),(r.cp_all||0)-(r.cp_ok||0)?'warn':'');
+ document.getElementById('stock').innerHTML=k('쿠팡 승인완료',N(r.cp_ok))+cpRest+k('스스 리스팅',N(r.ss_all))+k('옵션 품절 있음',N(optOut))+k('전체 품절',N(allOut))+k('판매 중지 (판매중지 + 예약배송 중지)',N(stopped),stopped?'warn':'')+k('현재 역마진 (쿠팡 세전 &lt; 0)',N(neg),neg?'bad':'ok')+k('지혈가 유지 중 (계획가 = 지혈가)',N(bleedAct))+k('지혈 이력',N(bleedHist));
  const Wt=D.watch||{}, all=Wt.alerts||[], auto=all.filter(a=>a.처리==='자동'), info=all.filter(a=>a.처리==='정보'), by=Wt.auto_counts||{}; if(!Wt.auto_counts)auto.forEach(a=>by[a.kind]=(by[a.kind]||0)+1);
  document.getElementById('auton').textContent=`AUTOMATED · ${N(Wt.auto_total??auto.length)}`;document.getElementById('infon').textContent=`참고 ${N(info.length)}`;
  document.getElementById('chips').innerHTML=Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`<span class="chip"><span>${esc(k)}</span><b>${N(n)}</b></span>`).join('')||'<span class="chip"><span>없음</span><b>0</b></span>';
@@ -185,14 +207,15 @@ function renderFunnel(){
  if(!has.length){st.innerHTML='';document.getElementById('chFun').innerHTML='<div class="empty">WING 판매분석 일별 엑셀이 없습니다 — 인사이트 폴더에 SELLER_INSIGHTS_DAILY_SUMMARY_METRICS_*.xlsx 를 넣으면 표시</div>';document.getElementById('chCvr').innerHTML='';return}
  const v=sum(has,'visitors'),c=sum(has,'carts'),o=sum(has,'orders'),l7=has.slice(-7),cvr=v?o/v*100:0,cvr7=sum(l7,'visitors')?sum(l7,'orders')/sum(l7,'visitors')*100:0;
  const mini=(k,val,s,cl)=>`<div><div class="k">${k}</div><div class="v n ${cl||''}">${val}</div><div class="s">${s}</div></div>`;
- st.innerHTML=mini('기간 방문자',N(v),`${has.length}일치 ${has[0].date.slice(5)}~${has[has.length-1].date.slice(5)}`)+mini('장바구니',N(c),`방문 대비 ${v?(c/v*100).toFixed(1):0}%`)+mini('주문',N(o),`장바구니 대비 ${c?(o/c*100).toFixed(0):0}%`)+mini('구매 전환율',`${cvr.toFixed(2)}%`,`최근 7일 ${cvr7.toFixed(2)}% · 게이트 1%`,cvr>=1?'ok':cvr>=0.5?'warn':'bad');
+ st.innerHTML=mini('기간 방문자',N(v),`${has.length}일치 ${has[0].date.slice(5)}~${has[has.length-1].date.slice(5)}`)+mini('장바구니',N(c),`방문 대비 ${v?(c/v*100).toFixed(1):0}%`)+mini('순주문(취소 차감)',N(o),`WING 주문 원값 합 · 장바구니 대비 ${c?(o/c*100).toFixed(0):0}%`)+mini('구매 전환율',`${cvr.toFixed(2)}%`,`최근 7일 ${cvr7.toFixed(2)}% · 게이트 1%`,cvr>=1?'ok':cvr>=0.5?'warn':'bad');
  document.getElementById('funSrc').textContent=F.last_date?`WING 인사이트 · 마지막 ${F.last_date.slice(5)} · 없는 날은 빈칸`:'WING 인사이트';
  const Wd=1200,H=190,L=46,R=50,T=16,B=24,iw=Wd-L-R,ih=H-T-B,n=rows.length,bw=iw/n, vmax=Math.max(1,...rows.map(r=>r.visitors||0)), omax=Math.max(1,...rows.map(r=>r.orders||0));
  const yv=x=>T+ih-(x/vmax)*ih, yo=x=>T+ih-(x/omax)*ih, tx=(x,y,t,a,c)=>`<text x="${x}" y="${y}" text-anchor="${a||'middle'}" font-size="10" font-family="IBM Plex Mono,monospace" fill="${c||'#61686C'}">${t}</text>`; let g='';
  [0,.5,1].forEach(f=>{const y=T+ih-f*ih;g+=`<line x1="${L}" x2="${Wd-R}" y1="${y}" y2="${y}" stroke="${f===0?'#2E3336':'#191C1E'}"/>`+tx(L-8,y+4,Math.round(vmax*f),'end')+tx(Wd-R+8,y+4,Math.round(omax*f),'start')});
  rows.forEach((r,i)=>{if(r.visitors==null)return;const x=L+bw*i+bw*.18,w=bw*.64;g+=`<rect x="${x.toFixed(1)}" y="${yv(r.visitors).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(1,ih-(yv(r.visitors)-T)).toFixed(1)}" fill="#2F3A42"><title>${r.date} 방문 ${r.visitors} · 장바구니 ${r.carts} · 주문 ${r.orders}</title></rect>`;
   if(r.carts)g+=`<rect x="${x.toFixed(1)}" y="${yv(r.carts).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(1,ih-(yv(r.carts)-T)).toFixed(1)}" fill="#7FA0B8"/>`;
-  if(r.orders)g+=`<circle cx="${(x+w/2).toFixed(1)}" cy="${yo(r.orders).toFixed(1)}" r="3.5" fill="#6FB08A"/>`+tx(x+w/2,yo(r.orders)-7,r.orders,'middle','#6FB08A')});
+  if(r.orders>0)g+=`<circle cx="${(x+w/2).toFixed(1)}" cy="${yo(r.orders).toFixed(1)}" r="3.5" fill="#6FB08A"/>`+tx(x+w/2,yo(r.orders)-7,r.orders,'middle','#6FB08A');
+  else if(r.orders<0)g+=tx(x+w/2,T+ih-4,r.orders,'middle','#D9736B')});   /* 음수 = 취소가 주문보다 많은 날 (WING 원값) */
  rows.forEach((r,i)=>{if(i%5===0||i===n-1)g+=tx(L+bw*i+bw/2,H-7,r.date.slice(5))});
  document.getElementById('chFun').innerHTML=`<div class="note" style="margin-top:12px">막대 방문자(어두움) · 장바구니(파랑) · 점 주문 — 왼쪽 축 방문, 오른쪽 축 주문</div><svg viewBox="0 0 ${Wd} ${H}" width="100%" style="display:block;margin-top:6px;overflow:visible">${g}</svg>`;
  const cm=Math.max(0.5,...rows.map(r=>r.cvr||0)), yc=x=>T+ih-(x/cm)*ih, H2=120, ih2=H2-T-B, yc2=x=>T+ih2-(x/cm)*ih2; let g2='';
@@ -204,40 +227,40 @@ function renderFunnel(){
 }
 /* ── 손익 · 등록 · 배송 · 반품 ── */
 function renderTables(){
- const P=D.pnl_v2||{}, pm=P.months||[], rowP=(x,l)=>`<tr><td class="l">${l}</td><td>${x.유효건}${x.반품?` <span class="tag bad">반품 ${x.반품}</span>`:''}</td><td>${x.수량??x.유효건}</td><td>${N(x.유효매출)}</td><td>${N(x.세전)}</td><td>${N(x.부가세)}</td><td>${x.마케팅비?'-'+N(x.마케팅비):'-'}</td><td class="${(x.쇼핑순이익||0)<0?'bad':'ok'}" style="font-weight:600">${S(x.쇼핑순이익)}</td><td>${N(x.개당세후??x.건당세후)}</td></tr>`;
+ const P=D.pnl_v2||{}, pm=P.months||[], rowP=(x,l)=>`<tr><td class="l">${l}</td><td>${x.유효건}${x.반품?` <span class="tag bad">반품 ${x.반품}</span>`:''}${x.취소?` <span class="tag">취소 ${x.취소}</span>`:''}</td><td>${x.수량??x.유효건}</td><td>${N(x.유효매출)}</td><td>${N(x.세전)}</td><td>${N(x.부가세)}</td><td>${x.마케팅비?'-'+N(x.마케팅비):'-'}</td><td class="${(x.쇼핑순이익||0)<0?'bad':'ok'}" style="font-weight:600">${S(x.쇼핑순이익)}</td><td>${N(x.개당세후??x.건당세후)}</td></tr>`;
  document.getElementById('pnl').innerHTML=`<tr><th class="l">MONTH</th><th>N</th><th>수량</th><th>매출</th><th>세전</th><th>부가세</th><th>마케팅</th><th>순이익</th><th>개당</th></tr>`+pm.map(x=>rowP(x,x.month)).join('')+(P.total?rowP(P.total,'누적'):'');
- document.getElementById('pnlNote').textContent=`세전 = 판매가 − 실결제 − 수수료 / 부가세 = 세전 ÷ 11 / 순이익 = 세후 − 반품 손실 − 마케팅비 / 개당 = (세후 − 반품 손실) ÷ 수량${P.total&&P.total.수수료추정건?` / 수수료 추정 ${P.total.수수료추정건}건`:''}`;
+ document.getElementById('pnlNote').textContent=`N = 반품·취소 제외 / 세전 = 판매가 − 실결제 − 수수료 / 부가세 = 월 세전 ÷ 11 (9월~ 일반과세, 8월 간이과세 0) / 순이익 = 세후 − 반품 손실 − 마케팅비 / 개당 = (세후 − 반품 손실) ÷ 수량${P.total&&P.total.수수료추정건?` / 수수료 추정 ${P.total.수수료추정건}건`:''}${P.total&&P.total.반품비미확정?` / 무신사 반품비 미확정 ${P.total.반품비미확정}건(손실 0 으로 잡힘)`:''}`;
  const r=D.registration||{}, dl=r.daily30||[], sum=(a,k)=>a.reduce((x,y)=>x+(y[k]||0),0), l7=sum(dl.slice(-7),'cp'), p7=sum(dl.slice(-14,-7),'cp'), avg7=l7/7, need=Math.max(0,(r.target||0)-(r.cp_ok||0)), days=avg7>0?Math.ceil(need/avg7):null;
  document.getElementById('regn').textContent=`+${N(sum(dl,'cp'))} · 하루 평균 ${(sum(dl,'cp')/Math.max(1,dl.length)).toFixed(1)}`;
  chartReg(document.getElementById('chReg'),dl);
  const mini=(k,v,s,c)=>`<div><div class="k">${k}</div><div class="v n ${c||''}">${v}</div><div class="s">${s}</div></div>`;
- document.getElementById('regStats').innerHTML=mini('오늘 신규',r.today_new==null?'-':'+'+r.today_new,'스냅샷 대비','ok')+mini('최근 7일','+'+N(l7),`전주 대비 ${p7?(l7>=p7?'▲':'▼')+N(Math.abs(l7-p7)):'-'}`)+mini(`${N(r.target)}까지`,days==null?'-':days+'일',`7일 속도 · 남은 ${N(need)}`,days&&days>45?'warn':'')+mini('남은 검색어',r.remaining_keywords??'-',r.ext_capped?'수집 상한 도달':'수집기가 처리 중');
+ document.getElementById('regStats').innerHTML=mini('오늘 신규',r.today_new==null?'-':'+'+N(r.today_new),'쿠팡 등록일(createdAt) 오늘','ok')+mini('최근 7일','+'+N(l7),`전주 대비 ${p7?(l7>=p7?'▲':'▼')+N(Math.abs(l7-p7)):'-'}`)+mini(`${N(r.target)}까지`,days==null?'-':days+'일',`7일 속도 · 남은 ${N(need)}`,days&&days>45?'warn':'')+mini('남은 검색어',r.remaining_keywords??'-',r.ext_capped?'수집 상한 도달':'수집기가 처리 중');
  const rs=r.rounds||[]; document.getElementById('rounds').innerHTML=`<tr><th class="l">오늘 차수</th><th>후보</th><th>GO</th><th>등록</th><th>판정</th></tr>`+(rs.map(x=>`<tr><td class="l">${x.round}차</td><td>${x.cand}</td><td>${x.go}</td><td class="${x.registered<x.go?'bad':''}" style="${x.registered<x.go?'font-weight:600':''}">${x.registered}</td><td>${x.at}</td></tr>`).join('')||'<tr><td class="l" colspan="5">오늘 차수 없음</td></tr>');
- const A=D.delivery_acc||{}, M=A.metrics||{}, pc=m=>m&&m.n?`${Number(m.pct).toFixed(1)}%`:'-', cl=(m,t)=>!m||!m.n?'':(m.pct>=t?'ok':'bad');
- document.getElementById('ful').innerHTML=mini('정시 출고',pc(M.ship),M.ship&&M.ship.n?`${M.ship.ok}/${M.ship.n}건 · 목표 99%`:'판정 없음',cl(M.ship,99))+mini('정시 배송',pc(M.delivery),M.delivery&&M.delivery.n?`${M.delivery.ok}/${M.delivery.n}건 · 목표 95%`:'판정 없음',cl(M.delivery,95))+mini('판정 대기',M.pending??0,'기한 전 · 배송 중');
+ const A=D.delivery_acc||{}, M=A.metrics||{}, mn=(A.targets||{}).min_n||20, pc=m=>m&&m.n?`${Number(m.pct).toFixed(1)}%`:'-', cl=(m,t)=>!m||!m.n||m.n<mn?'':(m.pct>=t?'ok':'bad'), sub=(m,t)=>!m||!m.n?'판정 없음':m.n<mn?`표본 부족 (${m.n}/${mn}) · ${m.ok}/${m.n}건`:`${m.ok}/${m.n}건 · 목표 ${t}%`;
+ document.getElementById('ful').innerHTML=mini('정시 출고',pc(M.ship),sub(M.ship,99),cl(M.ship,99))+mini('정시 배송',pc(M.delivery),sub(M.delivery,95),cl(M.delivery,95))+mini('판정 대기',M.pending??0,'기한 전 · 배송 중');
  document.getElementById('late').innerHTML=(A.late||[]).map(x=>`<div class="late"><span class="lb">${esc(x.판정||'지연')}</span><div style="min-width:0"><div style="font-size:13.5px">${esc(strip(x.상품))}</div><div class="m" style="font-size:10.5px;color:var(--mut2);margin-top:2px">기한 ${esc(x.기한)} · 실제 ${esc(x.실제)} · 원인 ${esc(x.원인)}</div></div></div>`).join('');
  const cur=(D.money||{}).month||new Date().toISOString().slice(0,7), rt=((D.returns||{}).months||{})[cur]||{}, rn=(rt.반품||0)+(rt.교환||0), cnt=(D.money||{}).count||0, RR=(D.returns||{}).rows||[], vendorN=RR.filter(x=>String(x.날짜||'').startsWith(cur)&&x.귀책==='판매자').length;
  document.getElementById('retn').textContent=`${cur.slice(5)}월 ${rn}건 / 주문 ${cnt}건`;
  const row=(l,n,v,c)=>`<div class="row"><div class="l">${l}<small>${n}</small></div><div class="r n ${c||''}">${v}</div></div>`;
- document.getElementById('returns').innerHTML=row(`${cur.slice(5)}월 반품`,`반품률 ${cnt?Math.round(rn/cnt*100):0}% · 판매자 귀책 ${vendorN}`,`${rn}건`,rn?'warn':'ok')+row('반품 손실','무신사 반품비 − 고객부담 '+N(rt.고객부담||0),'-'+W(rt.반품손실||0),(rt.반품손실||0)?'bad':'')+row('환불된 판매액','매출에서 제외',W(rt.금액||0))+row('진행 중',rt.진행중?'승인 대기':'승인 대기 없음',`${rt.진행중||0}건`,rt.진행중?'warn':'ok');
+ document.getElementById('returns').innerHTML=row(`${cur.slice(5)}월 반품`,`반품률 ${cnt?Math.round(rn/cnt*100):0}% · 판매자 귀책 ${vendorN}`,`${rn}건`,rn?'warn':'ok')+row('반품 손실','무신사 반품비 − 고객부담 '+N(rt.고객부담||0)+(rt.반품비미확정?` · 반품비 미확정 ${rt.반품비미확정}건`:''),'-'+W(rt.반품손실||0),(rt.반품손실||0)?'bad':'')+row('취소','출고 전 중지 · 반품·판매자 귀책 아님',`${rt.취소||0}건`)+row('환불·취소된 판매액','매출에서 제외',W(rt.금액||0))+row('진행 중',rt.진행중?'승인 대기':'승인 대기 없음',`${rt.진행중||0}건`,rt.진행중?'warn':'ok');
 }
 function renderBottom(){
  const O=[...(D.orders||[])].sort((a,b)=>String(b.날짜).localeCompare(String(a.날짜))), RR=(D.returns||{}).rows||[], retBy={}; RR.forEach(x=>{if(x.주문번호)retBy[String(x.주문번호)]=x});
  document.getElementById('ledgerP').style.display=pref.ledger?'':'none'; document.getElementById('listP').style.display=pref.list?'':'none';
- const tot=O.reduce((a,o)=>a+(((o.손익||{}).내손에)||0),0), est=O.filter(o=>!o.실수수료).length;
- document.getElementById('ledgerNote').textContent=`${O.length}건 · 세후 ${W(tot)} · 수수료 실측 ${O.length-est} / 추정 ${est}`;
+ const netOf=o=>{const ret=retBy[String(o.주문번호)];return ret?-(ret.반품손실||0):((o.손익||{}).내손에||0)}, valid=O.filter(o=>!retBy[String(o.주문번호)]), tot=O.reduce((a,o)=>a+netOf(o),0), est=valid.filter(o=>!o.실수수료).length;   /* 합계도 행과 같은 규칙: 반품·취소는 −반품손실 (2026-09-25) */
+ document.getElementById('ledgerNote').textContent=`${O.length}건 (반품·취소 ${O.length-valid.length}) · 세후 합 ${W(tot)} (건별 부가세) · 수수료 실측 ${valid.length-est} / 추정 ${est}`;
  document.getElementById('ledger').innerHTML=`<tr><th class="l">날짜</th><th class="l">마켓</th><th class="l">상품</th><th>판매가</th><th>실결제</th><th>수수료</th><th>세후</th></tr>`+O.map(o=>{const p=o.손익||{},ret=retBy[String(o.주문번호)],net=ret?-(ret.반품손실||0):p.내손에;
-  return `<tr><td class="l">${esc(String(o.날짜).slice(5))}</td><td class="l"><span class="tag ${o.마켓==='쿠팡'?'cp':'ss'}">${esc(o.마켓||'스스')}</span></td><td class="t">${esc(strip(o.상품명).slice(0,44))}<span> · ${esc(o.옵션||'')}</span>${ret?` <span class="tag bad">반품</span>`:''}</td><td>${N(o.판매가)}</td><td>${N(o.실결제액||o.원가)}</td><td>${N(o.실수수료||p.수수료)} <span class="src ${o.실수수료?'':'est'}">${o.실수수료?'실측':'추정'}</span></td><td class="${net<0?'bad':'ok'}" style="font-weight:600">${S(net)}</td></tr>`}).join('');
- const L=D.listings||[], warn=x=>x.stopped||x.bleed||(x.flags||[]).some(f=>['옵션품절','상품품절','품절','재고임박','마진가드','원가상승'].includes(f)), rows=[...L.filter(warn),...L.filter(x=>!warn(x))].slice(0,60);
+  return `<tr><td class="l">${esc(String(o.날짜).slice(5))}</td><td class="l"><span class="tag ${o.마켓==='쿠팡'?'cp':'ss'}">${esc(o.마켓||'스스')}</span></td><td class="t">${esc(strip(o.상품명).slice(0,44))}<span> · ${esc(o.옵션||'')}</span>${ret?` <span class="tag ${ret.구분==='취소'?'':'bad'}">${esc(ret.구분||'반품')}</span>`:''}</td><td>${N(o.판매가)}</td><td>${N(o.실결제액||o.원가)}</td><td>${N(o.실수수료||p.수수료)} <span class="src ${o.실수수료?'':'est'}">${o.실수수료?'실측':'추정'}</span></td><td class="${net<0?'bad':'ok'}" style="font-weight:600">${S(net)}</td></tr>`}).join('');
+ const L=D.listings||[], warn=x=>x.stopped||x.bleed_active||(x.flags||[]).some(f=>['옵션품절','상품품절','품절','재고임박','마진가드','원가상승'].includes(f)), rows=[...L.filter(warn),...L.filter(x=>!warn(x))].slice(0,60);
  document.getElementById('listNote').textContent=`${N(L.length)} 리스팅 중 주의 ${N(L.filter(warn).length)} 우선 · 60종 표시`;
- document.getElementById('list').innerHTML=`<tr><th class="l">상품</th><th>원가</th><th>쿠팡가</th><th>세전</th><th class="l">상태</th></tr>`+rows.map(x=>{const fl=x.stopped?'중지':x.bleed?'지혈':(x.flags||[])[0]||'', c=x.cp_net==null?'':x.cp_net<0?'bad':x.cp_net<4000?'warn':'ok';
+ document.getElementById('list').innerHTML=`<tr><th class="l">상품</th><th>원가</th><th>쿠팡가</th><th>세전</th><th class="l">상태</th></tr>`+rows.map(x=>{const fl=x.stopped?'중지':x.bleed_active?'지혈가':(x.flags||[])[0]||'', c=x.cp_net==null?'':x.cp_net<0?'bad':x.cp_net<4000?'warn':'ok';
   return `<tr><td class="t">${esc(x.name)}</td><td>${N(x.cost)}</td><td>${x.cp_pid?N(x.cp_price):'-'}</td><td class="${c}" style="${c==='bad'?'font-weight:600':''}">${x.cp_net==null?'-':N(x.cp_net)}</td><td class="l"><span class="tag ${fl==='중지'||fl==='마진가드'?'bad':fl?'warn':''}">${esc(fl||'정상')}</span></td></tr>`}).join('');
 }
 function render(d){if(!d)return;D=d;renderTop();renderQueue();renderSide();chartMain(document.getElementById('chMain'));renderFunnel();renderTables();renderBottom()}
 function load(manual){if(paused&&!manual)return;
  if(REMOTE){fetch(API+'/data?key='+RKEY).then(r=>r.json()).then(rows=>{const st={};(rows||[]).forEach(x=>st[x.kind]=x);const d=(st.dashboard||{}).payload;if(!d){toast('아직 동기화된 데이터 없음');return}d._sync_age=st.dashboard.updated_at?Math.round((Date.now()-new Date(st.dashboard.updated_at))/1000):null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'));return}
  fetch('/data'+(RKEY?'?key='+RKEY:'')).then(r=>r.json()).then(d=>{d._sync_age=null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'))}
-const VERSION='ZDV-'+'20260922-0053';
+const VERSION='ZDV-'+'20260925-2300';
 function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 load();setInterval(()=>load(false),REMOTE?300000:60000);if(REMOTE){checkVersion();setInterval(checkVersion,600000)}
 </script><script>try{document.getElementById('archLink').href=(location.hostname.endsWith('github.io')?'arch.html':'/arch'+location.search)}catch(e){}</script>
