@@ -45,8 +45,18 @@ details summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(
 .note{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:9px}.empty{font-size:13px;color:var(--mut2);padding:14px 0}
 #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;font-family:var(--mono);font-size:12px;display:none;z-index:9}
 @media(max-width:640px){.tile .v{font-size:26px}.stamp{display:block;margin:2px 0 0}}
+.simple{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+.sc{background:var(--panel);padding:18px clamp(14px,2vw,22px) 16px;min-width:0}.sc h3{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--mut2);margin:0 0 6px;font-weight:600}
+.sc .big{font-size:34px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:1.15}.sc .why{font-size:13px;margin:4px 0 10px;text-wrap:balance}
+.sc .ln{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line2);font-variant-numeric:tabular-nums}.sc .ln span:first-child{color:var(--mut)}
+.sc .ft{font-size:11.5px;color:var(--dim);margin-top:9px;line-height:1.55}.sc .it{padding:8px 0;border-bottom:1px solid var(--line2);font-size:13px}.sc .it b{font-weight:600}.sc .it small{display:block;color:var(--mut);margin-top:2px}
+.sc .chip{display:inline-block;font-family:var(--mono);font-size:11px;padding:3px 8px;margin:4px 6px 0 0;background:#1D2022;color:var(--mut)}
+.moreb{display:block;width:100%;background:var(--head);color:var(--mut);border:0;border-bottom:1px solid var(--line);padding:11px;font-family:var(--mono);font-size:12px;letter-spacing:.08em;cursor:pointer}.moreb:focus-visible{outline:2px solid var(--acc)}
 </style></head><body>
 <div class="hd"><div><span class="brand">ZERODAILY</span><span class="stamp" id="stamp">CONTROL · —</span><a class="stamp" id="archLink" href="arch.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:3px">구조도</a></div><div class="rail" id="rail"></div></div>
+<div class="simple" id="simple"></div>
+<button class="moreb" id="moreb" type="button" aria-expanded="false">자세히 보기 ▾</button>
+<div id="detail" style="display:none">
 <div class="tiles" id="tiles"></div>
 <div class="g2">
  <div class="pane"><div class="ph"><b>DECISION QUEUE</b><span id="qn" class="bad"></span></div><div id="queue"></div></div>
@@ -71,6 +81,7 @@ details summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(
 </div>
 <div class="pane" id="ledgerP" style="border-top:1px solid var(--line)"><div class="ph"><b>ORDER LEDGER</b><span id="ledgerNote"></span></div><div class="tw"><table id="ledger"></table></div></div>
 <div class="pane" id="listP" style="border-top:1px solid var(--line)"><div class="ph"><b>LISTINGS</b><span id="listNote"></span></div><div class="tw"><table id="list"></table></div></div>
+</div>
 <div id="toast"></div>
 <script>
 const REMOTE=location.hostname.endsWith('github.io'), RKEY=new URLSearchParams(location.search).get('key'), API='https://gvhbwbvgwnfqpqyimizi.supabase.co/functions/v1/admin';
@@ -150,7 +161,7 @@ function renderQueue(){
   al.push({kind:'차수미완료',처리:'판단필요',no:`${rounds.length}개 차수`,time:last,name:`등록 미완료 ${rounds.length}개 차수 — GO 미등록 합계 ${tot}종`,msg:rounds.map(a=>`${String(a.no).replace('차수:','')}차 ${gn(a)}`).join(' · ')+`\n각 차수 재시도 3회 실패. 쿠팡 거절 사유는 차수 로그의 HTTP 오류 줄 (사유가 기록된 차수: ${rounds.filter(a=>/거절 사유: /.test(a.msg)).map(a=>String(a.no).replace('차수:','')+'차').join(', ')||'없음'})`})}
  if(netRes.length)info.push({kind:'망장애',처리:'정보',no:netRes.map(a=>a.no).join(', '),time:NR.at,name:`네트워크 장애 해결됨 ${NR.at} — ${netRes.length}개 호스트`,msg:`최근 ${NR.minutes}분 연결 실패 0회 (계량 원본 logs/계량): `+netRes.map(a=>`${a.no} 호출 ${N((NH[a.no]||{}).n||0)}회`).join(' · ')+`\n원 카드(감시상태.json)는 계량.py 점검이 최근 120분 기준으로 지운다`+(netRes.some(a=>!(NH[a.no]||{}).n)?` — 최근 120분 호출이 없는 호스트는 자동으로 안 지워진다 (30분 호출 0회: ${netRes.filter(a=>!(NH[a.no]||{}).n).map(a=>a.no).join(', ')})`:'')});
  let i=0;
- document.getElementById('qn').textContent=`판단 ${dec.length+al.length} · 정보 ${info.length}`;
+ document.getElementById('qn').textContent=`전체 카드 ${dec.length+al.length} · 정보 ${info.length} (사장님 판단은 맨 위 요약)`;
  document.getElementById('queue').className=pref.dense?'dense':'';
  document.getElementById('queue').innerHTML=(dec.map(o=>orderCard(o,++i)).join('')+al.map(a=>alertCard(a,++i)).join('')+info.map(a=>alertCard(a,++i,true)).join(''))||'<div class="empty">결정할 것 없음 — 시스템이 정상 운영 중</div>';
  const lateN=inflight.filter(o=>o.출고기한초과>0).length;
@@ -256,11 +267,35 @@ function renderBottom(){
  document.getElementById('list').innerHTML=`<tr><th class="l">상품</th><th>원가</th><th>쿠팡가</th><th>세전</th><th class="l">상태</th></tr>`+rows.map(x=>{const fl=x.stopped?'중지':x.bleed_active?'지혈가':(x.flags||[])[0]||'', c=x.cp_net==null?'':x.cp_net<0?'bad':x.cp_net<4000?'warn':'ok';
   return `<tr><td class="t">${esc(x.name)}</td><td>${N(x.cost)}</td><td>${x.cp_pid?N(x.cp_price):'-'}</td><td class="${c}" style="${c==='bad'?'font-weight:600':''}">${x.cp_net==null?'-':N(x.cp_net)}</td><td class="l"><span class="tag ${fl==='중지'||fl==='마진가드'?'bad':fl?'warn':''}">${esc(fl||'정상')}</span></td></tr>`}).join('');
 }
-function render(d){if(!d)return;D=d;renderTop();renderQueue();renderSide();chartMain(document.getElementById('chMain'));renderFunnel();renderTables();renderBottom()}
+
+function renderSimple(){const s=D.simple||{},el=document.getElementById('simple');if(!el)return;if(s.error){el.innerHTML=`<div class="sc"><h3>요약 계산 오류</h3><div class="why bad">${esc(s.error)}</div></div>`;return}
+ const g=s.가져갈돈||{},f=g.식||{},c=s.카드||{},nx=c.다음결제||{},p=s.문제||{},ln=(a,b,cl)=>`<div class="ln"><span>${a}</span><span class="${cl||''}">${b}</span></div>`;
+ const age=g.잔액기준?`후잉 기록 ${esc(g.잔액기준)} 기준`:'통장 잔액 없음';
+ const c1=`<div class="sc"><h3>이번 달 가져갈 수 있는 돈</h3><div class="big ${g.금액>0?'ok':''}">${g.금액==null?'-':W(g.금액)}</div>
+  <div class="why ${g.부족>0?'bad':''}">${g.금액==null?'통장 잔액을 아직 못 읽음':g.부족>0?`지금은 가져갈 돈이 없습니다 · ${W(g.부족)} 부족`:'가져가도 카드 대금·세금 적립 후 남는 금액'}</div>
+  ${ln('사업 통장 ('+age+')',W(f.사업통장))}${ln('− 아직 안 낸 우리카드 사업 대금',W(f.우리카드_사업대금),'bad')}${ln('− 부가세 적립 (9월~)',W(f.부가세_적립),'bad')}${ln(`− 소득세·건보 적립 (순이익의 ${Math.round((f.적립률||0)*100)}%, 가정)`,W(f.소득세건보_적립),'bad')}
+  <div class="ft">${esc(g.출처||'')}. 쿠팡에서 아직 안 들어온 돈은 넣지 않았습니다(보수적).</div></div>`;
+ const short=c.부족, cp=c.쿠팡_입금예정_결제일전||0, after=short==null?null:Math.max(0,short-cp);
+ const c2=`<div class="sc"><h3>${nx.결제일?esc(nx.결제일.slice(5).replace('-','/'))+' ':''}우리카드 사업 대금</h3><div class="big ${short>0?'bad':'ok'}">${nx.사업매입==null?'-':W(nx.사업매입)}</div>
+  <div class="why">${nx.이용월?esc(nx.이용월.slice(5))+'월 무신사 사입 '+N(nx.건수)+'건':'다가오는 대금 없음'}${nx.환불대기?` · 환불 대기 ${W(nx.환불대기)} 별도`:''}</div>
+  ${ln('준비된 돈 (사업 통장)',W(c.준비된돈))}${ln('부족',short==null?'-':short>0?W(short):'없음',short>0?'bad':'ok')}
+  ${ln('그 전에 들어올 쿠팡 돈 (차감 확인 전)',W(cp))}${ln('쿠팡 돈이 예정대로 오면 부족',after==null?'-':after>0?W(after):'없음',after>0?'warn':'ok')}
+  <div class="ft">쿠팡 지급: ${(c.쿠팡_행||[]).map(r=>esc(String(r[0]).slice(5))+' '+N(r[1])).join(' · ')||'없음'} — 매주 차감액이 지급액과 같게 나와 실제 입금은 9/29 첫 지급으로 확인 필요.</div></div>`;
+ const dec=p.판단||[],cl=p.Claude||[],au=p.자동||[];
+ const c3=`<div class="sc"><h3>문제</h3><div class="big ${dec.length?'bad':'ok'}">사장님 판단 ${dec.length}건</div>
+  <div class="why">${dec.length?'':'지금 사장님이 하실 일은 없습니다'}</div>
+  ${dec.map(x=>{const KL={반려복구:'쿠팡 담당자 반려 상품',배송지불일치:'무신사 배송지 불일치',결제확인필요:'결제 확인 필요',취소대기:'고객 취소 승인',반품판매중지후보:'판매중지 후보',품절자동취소:'품절 취소 실패',주문지연:'주문 지연',주문수집실패:'주문 수집 실패',결제승인필요:'결제 승인',세션만료:'무신사 로그인 필요',수량확인:'수량 확인',취소수동:'취소 수동 처리'};const t=(x.대상&&x.대상!=='-')?x.대상:(KL[x.종류]||x.종류);return `<div class="it"><b>${esc(t)}</b><small>${esc(x.내용)}</small></div>`}).join('')}
+  <div class="ft" style="margin-top:12px">Claude 처리 중: ${cl.length?cl.map(x=>`<span class="chip">${esc(x.종류)} ${N(x.건수)}</span>`).join(''):'없음'}</div>
+  <div class="ft">주문 자동 처리 중: ${au.length?au.map(x=>esc(x.대상)+' ('+esc(x.내용)+')').join(' · '):'없음'}</div></div>`;
+ el.innerHTML=c1+c2+c3}
+function render(d){if(!d)return;D=d;renderSimple();renderTop();if(document.getElementById('detail').style.display==='none')return;renderQueue();renderSide();chartMain(document.getElementById('chMain'));renderFunnel();renderTables();renderBottom()}
 function load(manual){if(paused&&!manual)return;
  if(REMOTE){fetch(API+'/data?key='+RKEY).then(r=>r.json()).then(rows=>{const st={};(rows||[]).forEach(x=>st[x.kind]=x);const d=(st.dashboard||{}).payload;if(!d){toast('아직 동기화된 데이터 없음');return}d._sync_age=st.dashboard.updated_at?Math.round((Date.now()-new Date(st.dashboard.updated_at))/1000):null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'));return}
  fetch('/data'+(RKEY?'?key='+RKEY:'')).then(r=>r.json()).then(d=>{d._sync_age=null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'))}
-const VERSION='ZDV-'+'20260925-2300';
+const VERSION='ZDV-'+'20260926-1600';
+(function(){const b=document.getElementById('moreb'),d=document.getElementById('detail');let open=false;try{open=localStorage.getItem('zdb_detail')==='1'}catch(e){}
+ const set=o=>{d.style.display=o?'':'none';b.textContent=o?'간단히 보기 ▴':'자세히 보기 ▾';b.setAttribute('aria-expanded',o?'true':'false');try{localStorage.setItem('zdb_detail',o?'1':'0')}catch(e){};if(o&&D)render(D)};
+ b.addEventListener('click',()=>set(d.style.display==='none'));set(open)})();
 function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 load();setInterval(()=>load(false),REMOTE?300000:60000);if(REMOTE){checkVersion();setInterval(checkVersion,600000)}
 </script><script>try{document.getElementById('archLink').href=(location.hostname.endsWith('github.io')?'arch.html':'/arch'+location.search)}catch(e){}</script>
