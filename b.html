@@ -270,17 +270,17 @@ function renderBottom(){
 
 function renderSimple(){const s=D.simple||{},el=document.getElementById('simple');if(!el)return;if(s.error){el.innerHTML=`<div class="sc"><h3>요약 계산 오류</h3><div class="why bad">${esc(s.error)}</div></div>`;return}
  const g=s.가져갈돈||{},f=g.식||{},c=s.카드||{},nx=c.다음결제||{},p=s.문제||{},ln=(a,b,cl)=>`<div class="ln"><span>${a}</span><span class="${cl||''}">${b}</span></div>`;
- const age=g.잔액기준?`후잉 기록 ${esc(g.잔액기준)} 기준`:'통장 잔액 없음';
- const c1=`<div class="sc"><h3>이번 달 가져갈 수 있는 돈</h3><div class="big ${g.금액>0?'ok':''}">${g.금액==null?'-':W(g.금액)}</div>
+ const age=g.잔액기준?`후잉 ${esc(g.잔액기준)}`:'통장 잔액 없음';
+ const c1=`<div class="sc"><h3>이번 달 가져갈 수 있는 돈 <span class="src est">추정 포함</span></h3><div class="big ${g.금액>0?'ok':''}">${g.금액==null?'-':W(g.금액)}</div>
   <div class="why ${g.부족>0?'bad':''}">${g.금액==null?'통장 잔액을 아직 못 읽음':g.부족>0?`지금은 가져갈 돈이 없습니다 · ${W(g.부족)} 부족`:'가져가도 카드 대금·세금 적립 후 남는 금액'}</div>
-  ${ln('사업 통장 ('+age+')',W(f.사업통장))}${ln('− 아직 안 낸 우리카드 사업 대금',W(f.우리카드_사업대금),'bad')}${ln('− 부가세 적립 (9월~)',W(f.부가세_적립),'bad')}${ln(`− 소득세·건보 적립 (순이익의 ${Math.round((f.적립률||0)*100)}%, 가정)`,W(f.소득세건보_적립),'bad')}
+  ${ln('사업 통장 ('+age+')',W(f.사업통장))}${ln('− 아직 안 낸 우리카드 사업 대금',W(f.우리카드_사업대금),'bad')}${ln('− 부가세 적립 (9월~, 추정)',W(f.부가세_적립),'bad')}${ln(`− 소득세·건보 적립 (순이익의 ${Math.round((f.적립률||0)*100)}%, 가정)`,W(f.소득세건보_적립),'bad')}
   <div class="ft">${esc(g.출처||'')}. 쿠팡에서 아직 안 들어온 돈은 넣지 않았습니다(보수적).</div></div>`;
  const short=c.부족, cp=c.쿠팡_입금예정_결제일전||0, after=short==null?null:Math.max(0,short-cp);
- const c2=`<div class="sc"><h3>${nx.결제일?esc(nx.결제일.slice(5).replace('-','/'))+' ':''}우리카드 사업 대금</h3><div class="big ${short>0?'bad':'ok'}">${nx.사업매입==null?'-':W(nx.사업매입)}</div>
+ const c2=`<div class="sc"><h3>${nx.결제일?esc(nx.결제일.slice(5).replace('-','/'))+' ':''}우리카드 사업 대금 <span class="src est">청구 기준 확인 전</span></h3><div class="big ${short>0?'bad':'ok'}">${nx.사업매입==null?'-':W(nx.사업매입)}</div>
   <div class="why">${nx.이용월?esc(nx.이용월.slice(5))+'월 무신사 사입 '+N(nx.건수)+'건':'다가오는 대금 없음'}${nx.환불대기?` · 환불 대기 ${W(nx.환불대기)} 별도`:''}</div>
   ${ln('준비된 돈 (사업 통장)',W(c.준비된돈))}${ln('부족',short==null?'-':short>0?W(short):'없음',short>0?'bad':'ok')}
   ${ln('그 전에 들어올 쿠팡 돈 (차감 확인 전)',W(cp))}${ln('쿠팡 돈이 예정대로 오면 부족',after==null?'-':after>0?W(after):'없음',after>0?'warn':'ok')}
-  <div class="ft">쿠팡 지급: ${(c.쿠팡_행||[]).map(r=>esc(String(r[0]).slice(5))+' '+N(r[1])).join(' · ')||'없음'} — 매주 차감액이 지급액과 같게 나와 실제 입금은 9/29 첫 지급으로 확인 필요.</div></div>`;
+  <div class="ft">사입 금액은 무신사 주문서 원천 대조값. 청구일은 '결제일 25일·전월 사용분'으로 가정(카드사 이용기간 확인 전). 쿠팡 지급: ${(c.쿠팡_행||[]).map(r=>esc(String(r[0]).slice(5))+' '+N(r[1])).join(' · ')||'없음'} — 매주 차감액이 지급액과 같게 나와 실제 입금은 9/29 첫 지급으로 확인.</div></div>`;
  const dec=p.판단||[],cl=p.Claude||[],au=p.자동||[];
  const c3=`<div class="sc"><h3>문제</h3><div class="big ${dec.length?'bad':'ok'}">사장님 판단 ${dec.length}건</div>
   <div class="why">${dec.length?'':'지금 사장님이 하실 일은 없습니다'}</div>
@@ -292,7 +292,7 @@ function render(d){if(!d)return;D=d;renderSimple();renderTop();if(document.getEl
 function load(manual){if(paused&&!manual)return;
  if(REMOTE){fetch(API+'/data?key='+RKEY).then(r=>r.json()).then(rows=>{const st={};(rows||[]).forEach(x=>st[x.kind]=x);const d=(st.dashboard||{}).payload;if(!d){toast('아직 동기화된 데이터 없음');return}d._sync_age=st.dashboard.updated_at?Math.round((Date.now()-new Date(st.dashboard.updated_at))/1000):null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'));return}
  fetch('/data'+(RKEY?'?key='+RKEY:'')).then(r=>r.json()).then(d=>{d._sync_age=null;render(d);if(manual)toast('새로고침')}).catch(()=>toast('불러오기 실패'))}
-const VERSION='ZDV-'+'20260926-1600';
+const VERSION='ZDV-'+'20260926-1640';
 (function(){const b=document.getElementById('moreb'),d=document.getElementById('detail');let open=false;try{open=localStorage.getItem('zdb_detail')==='1'}catch(e){}
  const set=o=>{d.style.display=o?'':'none';b.textContent=o?'간단히 보기 ▴':'자세히 보기 ▾';b.setAttribute('aria-expanded',o?'true':'false');try{localStorage.setItem('zdb_detail',o?'1':'0')}catch(e){};if(o&&D)render(D)};
  b.addEventListener('click',()=>set(d.style.display==='none'));set(open)})();
