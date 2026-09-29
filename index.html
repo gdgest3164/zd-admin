@@ -137,14 +137,14 @@ pre{background:var(--pre);color:#C9D1DB;padding:12px;border-radius:9px;font-size
  <h2>최근 30일 추이 <span class="src">주문 실측 · 반품 실측</span></h2>
  <div class="grid" id="series_kpi" style="margin-bottom:8px"></div>
  <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 주문 수</span><span class="src">주문목록</span></div><div id="ch_orders"></div></div>
- <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 순이익 — 세후 (반품 손실은 반품일에 반영)</span><span class="src">주문·반품</span></div><div id="ch_profit"></div></div>
- <div class="kpi"><div class="k"><span>누적 순이익 — 실선 판매만 · 점선 광고비 차감</span><span class="src">주문·반품·후잉</span></div><div id="ch_cum"></div></div>
+ <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 매출 — 주문 판매가 합</span><span class="src">주문 실측</span></div><div id="ch_profit"></div></div>
+ <div class="kpi"><div class="k"><span>누적 매출 (30일)</span><span class="src">주문 실측</span></div><div id="ch_cum"></div></div>
  <h2>전환 — 방문 · 장바구니 · 주문 <span class="src">쿠팡 WING 엑셀 (월요일 업로드)</span></h2>
  <div class="grid" id="funnel_kpi" style="margin-bottom:8px"></div>
  <div class="kpi" style="margin-bottom:8px"><div class="k"><span>하루 방문자 (막대) · 장바구니 (짙은 막대) · 주문 (점)</span><span class="src" id="funnel_src"></span></div><div id="ch_funnel"></div></div>
  <div class="kpi"><div class="k"><span>구매 전환율 % (주문 ÷ 방문자)</span><span class="src">WING</span></div><div id="ch_cvr"></div></div>
  <h2>현금 <span class="src">정산 API · 후잉</span></h2><div class="grid" id="cash"></div>
- <h2>주문별 손익 <span class="src">주문 실측</span> <span class="src est">수수료 추정 = 정산 인식 전</span></h2><div class="tw"><table id="orders_t"></table></div>
+ <h2>주문별 손익 <span class="src">주문 실측</span> <span class="src">미확정 = 정산 인식 전</span></h2><div class="tw"><table id="orders_t"></table></div>
  <h2>월 손익 <span class="src">쇼핑만 · 도구비 제외</span></h2><div class="tw"><table id="pnl_t"></table></div>
  <div class="note" id="pnl_note" style="margin-top:6px"></div>
  <h2>반품</h2><div class="grid" id="returns"></div>
@@ -230,7 +230,7 @@ function orderCard(o){
  const full=`${o.수령인} ${o.연락처}\n${o.주소}\n${o.배송메모||''}`.trim();
  const chip=(k,v)=>v?`<span class="chip" onclick='copy(${JSON.stringify(String(v))},"${k} 복사")'><span class="k">${k}</span>${esc(v)}</span>`:'';
  return `<div class="dc ${mk} ${isBlocked?'bad':''}"><div class="t"><span class="name"><span class="tag ${mk}">${esc(o.마켓||'스스')}</span>${esc(strip(o.상품명))}</span><span class="price num">${원(o.판매가)}</span></div>
-  <div class="meta">${esc(o.날짜)} · 옵션 <b>${esc(o.옵션||'-')}</b>${o.발주확인?` · 재고 ${esc(strip(o.발주확인))}`:''} · 세후 <b class="num">${원(p.내손에??net)}</b> <span class="src ${o.실수수료?'':'est'}">${o.실수수료?'수수료 실측':'수수료 추정'}</span></div>
+  <div class="meta">${esc(o.날짜)} · 옵션 <b>${esc(o.옵션||'-')}</b>${o.발주확인?` · 재고 ${esc(strip(o.발주확인))}`:''}${o.실수수료?` · 세전 <b class="num">${원(p.세전)}</b> <span class="src">정산 실측</span>`:` · <span class="src">이익 미확정 (정산 인식 전)</span>`}</div>
   ${steps}${msg?`<div class="msg">${msg}</div>`:''}
   <div class="chips">${chip('받는분',o.수령인)}${chip('연락처',o.연락처)}${chip('주소',o.주소)}${chip('메모',o.배송메모)}<span class="chip" onclick='copy(${JSON.stringify(full)},"전체 복사")'>${ico('copy')} 전체</span></div>
   ${act?`<div class="act">${act}</div>`:''}</div>`;
@@ -280,23 +280,23 @@ function renderMoney(){
  document.getElementById('cash').innerHTML=
   kp('입금 완료',원((NV.입금완료||0)+paidCp),`스스 ${원(NV.입금완료||0)} · 쿠팡 ${원(paidCp)}`,'ok','정산 API')+
   kp('입금 예정',원(due.reduce((a,p)=>a+(+p.지급예정액||0),0)+(NV.입금예정||0)),due.map(p=>`${p.정산일} ${원(p.지급예정액)}`).join('<br>')||'예정 없음','','정산 API')+
-  kp('미수금(인식 전)',원(RC.API기준_미수금||0),'API가 인식하기 전 판매분은 후잉 정산예정금이 정확','','정산 API')+
+  kp('정산 인식 · 미지급',원(RC.API기준_미수금||0),'정산 API가 인식했지만 아직 지급 전인 금액','','정산 API')+
   kp('지출',원(C.지출||0),'사입 + 광고 + 반품비','','후잉')+
   kp('순현금',원(C.순현금||0),'입금 완료 − 지출',(C.순현금||0)<0?'bad':'ok','후잉');
  const O=[...(D.orders||[])].sort((a,b)=>String(b.날짜).localeCompare(String(a.날짜)));
  const RR=(D.returns||{}).rows||[]; const retBy={}; RR.forEach(r=>{if(r.주문번호)retBy[String(r.주문번호)]=r});
- // 판매 후 아직 안 들어온 돈(추정): 발송완료·비반품 주문의 (판매가 − 추정 수수료) 합 − 입금 완료분
- const unpaidEst=O.filter(o=>String(o.상태||'').startsWith('발송완료')&&!retBy[String(o.주문번호)]).reduce((a,o)=>a+((o.판매가||0)-((o.손익||{}).수수료||0)),0)-((NV.입금완료||0)+paidCp);
- document.getElementById('cash').insertAdjacentHTML('beforeend',kp('판매 후 미입금',원(Math.max(0,unpaidEst)),'발송완료·비반품 주문의 정산예정액 합 − 입금완료. 정산 API 인식 전 참고용','','추정'));
- document.getElementById('orders_t').innerHTML=`<tr><th>날짜</th><th>마켓</th><th>상품</th><th class="r">판매가</th><th class="r">실결제</th><th class="r">수수료</th><th class="r">세후</th><th>상태</th></tr>`+
+ // 2026-09-29 사장님 "사실만": 추정(판매 후 미입금) 제거 → WING 파일 사실 (wing파일적재.py)
+ const WG=D.wing||{}, WU=WG.미구매확정||null, WT=WG.트래픽||null, WB=(WU&&WU.상태별)||{};
+ document.getElementById('cash').insertAdjacentHTML('beforeend',(WU?kp('미구매확정 (WING)',원(WU.금액),`${N(WU.건수)}건 · 배송완료 ${N((WB.배송완료||{}).건수||0)}건 ${원((WB.배송완료||{}).금액||0)} · 결제완료 ${N((WB.결제완료||{}).건수||0)}건 · 기준 ${esc(WU.기준일||'')}`,'','WING 파일'):'')+(WT?kp('WING 7일 실측',`${N(WT.주문)}건 · ${원(WT.매출)}`,`${esc(WT.기간||'')} · 방문 ${N(WT.방문)} · 조회 ${N(WT.조회)} · 장바구니 ${N(WT.장바구니)}`,'','WING 파일'):''));
+ document.getElementById('orders_t').innerHTML=`<tr><th>날짜</th><th>마켓</th><th>상품</th><th class="r">판매가</th><th class="r">실결제</th><th class="r">수수료</th><th class="r">세전</th><th>상태</th></tr>`+
   O.map(o=>{const p=o.손익||{};const ret=retBy[String(o.주문번호)];const fee=o.실수수료||p.수수료;const net=ret?-(ret.반품손실||0):p.내손에;
-   return `<tr><td>${esc(String(o.날짜).slice(5))}</td><td><span class="tag ${o.마켓==='쿠팡'?'cp':'ss'}">${esc(o.마켓||'스스')}</span></td><td style="white-space:normal;min-width:160px">${esc(strip(o.상품명).slice(0,40))}<div class="note">${esc(o.옵션||'')}</div></td><td class="r num">${원(o.판매가)}</td><td class="r num">${ret?`${원(o.실결제액||o.원가)}<div class="note">환불 ${원(ret.무신사환불)}</div>`:원(o.실결제액||o.원가)}</td><td class="r num">${ret?'-':`${원(fee)} ${o.실수수료?'':'<span class="src est">추정</span>'}`}</td><td class="r num ${net<0?'neg':'pos'}">${ret?(net?'-'+원(-net):'0원'):원(net)}${ret?'<div class="note">반품비</div>':''}</td><td>${ret?`<span class="tag bad">반품 · ${esc(ret.귀책||'')} 귀책</span>`:`<span class="tag ${String(o.상태).startsWith('발송완료')?'ok':'warn'}">${esc(o.상태)}</span>`}</td></tr>`}).join('');
+   return `<tr><td>${esc(String(o.날짜).slice(5))}</td><td><span class="tag ${o.마켓==='쿠팡'?'cp':'ss'}">${esc(o.마켓||'스스')}</span></td><td style="white-space:normal;min-width:160px">${esc(strip(o.상품명).slice(0,40))}<div class="note">${esc(o.옵션||'')}</div></td><td class="r num">${원(o.판매가)}</td><td class="r num">${ret?`${원(o.실결제액||o.원가)}<div class="note">환불 ${원(ret.무신사환불)}</div>`:원(o.실결제액||o.원가)}</td><td class="r num">${ret?'-':(o.실수수료?원(fee):'<span class="src">미확정</span>')}</td><td class="r num ${net<0?'neg':'pos'}">${ret?(net?'-'+원(-net):'0원'):(o.실수수료?원(p.세전):'<span class="src">미확정</span>')}${ret?'<div class="note">반품비</div>':''}</td><td>${ret?`<span class="tag bad">반품 · ${esc(ret.귀책||'')} 귀책</span>`:`<span class="tag ${String(o.상태).startsWith('발송완료')?'ok':'warn'}">${esc(o.상태)}</span>`}</td></tr>`}).join('');
  const P=D.pnl_v2||{}, pm=P.months||[];
  const sgn=v=>`<td class="r num ${v<0?'neg':'pos'}">${(v<0?'-':'')+원(Math.abs(v||0))}</td>`;
- const row=(x,label)=>`<tr><td><b>${label}</b></td><td class="r num">${x.유효건}${x.반품?` <span class="tag bad">반품 ${x.반품}</span>`:''}</td><td class="r num">${x.수량??x.유효건}</td><td class="r num">${원(x.유효매출)}</td><td class="r num">${원(x.세전)}</td><td class="r num">${원(x.부가세)}</td><td class="r num">${원(x.세후)}</td><td class="r num">${x.반품손실?'-'+원(x.반품손실):'-'}</td><td class="r num">${x.마케팅비?'-'+원(x.마케팅비):'-'}</td>${sgn(x.쇼핑순이익)}<td class="r num">${원(x.건당세후)}</td><td class="r num">${원(x.개당세후??x.건당세후)}</td></tr>`;
- document.getElementById('pnl_t').innerHTML=`<tr><th>월</th><th class="r">유효 주문</th><th class="r">수량</th><th class="r">유효 매출</th><th class="r">세전</th><th class="r">부가세</th><th class="r">세후</th><th class="r">반품 손실</th><th class="r">마케팅비</th><th class="r">쇼핑 순이익</th><th class="r">건당 세후</th><th class="r">개당 세후</th></tr>`+
+ const row=(x,label)=>`<tr><td><b>${label}</b></td><td class="r num">${x.유효건}${x.반품?` <span class="tag bad">반품 ${x.반품}</span>`:''}</td><td class="r num">${원(x.유효매출)}</td><td class="r num">${x.확정건??'-'}</td><td class="r num">${원(x.확정매출||0)}</td>${sgn(x.확정세전||0)}<td class="r num">${x.미확정건??'-'}</td><td class="r num">${원(x.미확정매출||0)}</td><td class="r num">${x.반품손실?'-'+원(x.반품손실):'-'}</td><td class="r num">${x.마케팅비?'-'+원(x.마케팅비):'-'}</td></tr>`;
+ document.getElementById('pnl_t').innerHTML=`<tr><th>월</th><th class="r">유효 주문</th><th class="r">유효 매출</th><th class="r">확정 주문</th><th class="r">확정 매출</th><th class="r">확정 세전</th><th class="r">미확정 주문</th><th class="r">미확정 매출</th><th class="r">반품 손실</th><th class="r">마케팅비</th></tr>`+
   pm.map(x=>row(x,x.month)).join('')+(P.total?row(P.total,'누적'):'');
- const Nn=(D.pnl||{}).north||{}; document.getElementById('pnl_note').textContent=`세전 = 판매가 − 실결제 − 수수료 · 부가세 = 세전÷11 · 쇼핑 순이익 = 세후 − 반품 손실 − 마케팅비${P.total&&P.total.수수료추정건?` · 수수료 추정 ${P.total.수수료추정건}건(쿠팡 정산 인식 전)`:''}`+(Nn.목표_일건수?` · 북극성: 목표 일 ${Nn.목표_일건수}건, 현재 일평균 ${Nn.현재_일평균}건`:'');
+ const Nn=(D.pnl||{}).north||{}; document.getElementById('pnl_note').textContent=`확정 = 쿠팡 정산이 인식한 실수수료로 계산(판매가 − 무신사 실결제 − 실수수료) · 미확정 = 정산 인식 전(이익 계산 안 함) · 반품 손실 = 무신사 반품비 실측`+(Nn.목표_일건수?` · 북극성: 목표 일 ${Nn.목표_일건수}건, 현재 일평균 ${Nn.현재_일평균}건`:'');
  const cur=(D.money||{}).month||new Date().toISOString().slice(0,7); const rt=((D.returns||{}).months||{})[cur]||{}; const rn=(rt.반품||0)+(rt.교환||0); const cnt=(D.money||{}).count||0;
  const vendorN=RR.filter(r=>String(r.날짜||'').startsWith(cur)&&r.귀책==='판매자').length;
  document.getElementById('returns').innerHTML=kp('이번 달 반품',`${rn}건`,`주문 ${cnt}건 중 · 반품률 ${cnt?Math.round(rn/cnt*100):0}% · 판매자 귀책 ${vendorN}`,rn?'warn':'ok')+kp('반품 손실',원(rt.반품손실||0),`무신사 반품비 − 고객부담 회수 ${원(rt.고객부담||0)} · 진행중 ${rt.진행중||0}`,(rt.반품손실||0)?'bad':'','반품 실측')+kp('환불된 판매액',원(rt.금액||0),'매출에서 제외');
@@ -361,11 +361,11 @@ function renderSeries(){
  const kp=(k,v,s,c)=>`<div class="kpi ${c||''}"><div class="k">${k}</div><div class="v num">${v}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
  const last7=rows.slice(-7), prev7=rows.slice(-14,-7), sum=(a,k)=>a.reduce((x,r)=>x+(r[k]||0),0);
  document.getElementById('series_kpi').innerHTML=kp('30일 주문',S.orders_total,`최근 7일 ${sum(last7,'orders')} · 전주 ${sum(prev7,'orders')} · 반품 ${S.returns_total}`)
-  +kp('30일 순이익 (세후)',원(S.profit_total),'판매 − 원가 − 수수료 − 부가세 − 반품 손실',S.profit_total<0?'bad':'ok')
-  +kp('광고비 차감 순이익',원(S.net_total),`광고·이벤트 ${원(S.marketing_total)} 차감 (9/10부터 0)`,S.net_total<0?'bad':'ok');
+  +(()=>{const cm=[...(((D.pnl_v2||{}).months)||[])].sort((a,b)=>String(a.month).localeCompare(String(b.month))).slice(-1)[0]||{};return kp(`확정 세전 (${esc(String(cm.month||'').slice(5))}월)`,원(cm.확정세전||0),`확정 ${N(cm.확정건||0)}건 · 미확정 ${N(cm.미확정건||0)}건 (매출 ${원(cm.미확정매출||0)}) — 정산 API 실수수료 기준`,(cm.확정세전||0)<0?'bad':'ok')})();
  svgChart(document.getElementById('ch_orders'),rows,{h:110,series:[{k:'orders',color:'#6EA8FF',label:true}]});
- svgChart(document.getElementById('ch_profit'),rows,{h:130,signed:true,money:true,series:[{k:'profit',color:'#4ADE80',neg:'#FF7B72',label:true}]});
- svgChart(document.getElementById('ch_cum'),rows,{h:130,signed:true,money:true,series:[{k:'cum_profit',type:'line',color:'#4ADE80'},{k:'cum_net',type:'line',color:'#FFC24D',dash:true}]});
+ svgChart(document.getElementById('ch_profit'),rows,{h:130,money:true,series:[{k:'sales',color:'#4ADE80',label:true}]});
+ let _cs=0; const rows2=rows.map(r=>({...r,cum_sales:(_cs+=(r.sales||0))}));
+ svgChart(document.getElementById('ch_cum'),rows2,{h:130,money:true,series:[{k:'cum_sales',type:'line',color:'#4ADE80'}]});
 }
 function renderFunnel(){
  const F=D.funnel||{}; const rows=F.rows||[]; const kpEl=document.getElementById('funnel_kpi'); if(!kpEl)return;
@@ -412,7 +412,7 @@ function load(manual){
  }
 }
 /* ── 새 버전 자동 반영: 배포 뒤 폰이 옛 페이지를 캐시해 '그래프가 안 보이는' 문제 방지 (2026-09-08) ── */
-const VERSION='ZDV-'+'20260928-2';
+const VERSION='ZDV-'+'20260929-1';
 function checkVersion(){fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/ZDV-'\+'([0-9-]+)/);if(m&&('ZDV-'+m[1])!==VERSION){toast('새 버전 적용 중');setTimeout(()=>location.reload(),800)}}).catch(()=>{})}
 showTab(localStorage.getItem('zd2_tab')||'today');
 load();setInterval(()=>{if(!paused)load()},60000);setTimeout(checkVersion,5000);setInterval(checkVersion,300000);
