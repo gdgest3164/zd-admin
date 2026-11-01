@@ -62,7 +62,7 @@ details summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(
 <div class="hd"><div><span class="brand">ZERODAILY</span><span class="stamp" id="stamp">CONTROL · —</span><a class="stamp" id="archLink" href="arch.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:3px">구조도</a></div><div class="rail" id="rail"></div></div>
 <button class="alertl" id="alertl" type="button" hidden onclick="openDetail()"></button>
 <div class="fr" id="front"></div>
-<div class="pane" style="border-top:1px solid var(--line)"><div class="ph"><b>30D · ORDERS / CUMULATIVE NET</b><span>막대 주문 줄(취소·반품 포함) · 선 확정 세후 누적(반품 손실·마케팅 반영)</span></div><div id="chMain"></div><div class="note">창 시작을 0 으로 잡은 값. 구매확정·정산 전 주문은 미확정이라 선에 아직 없다.</div></div>
+<div class="pane" style="border-top:1px solid var(--line)"><div class="ph"><b>30D · ORDERS / CUMULATIVE NET</b><span>막대 주문 줄(취소·반품 포함) · 선 세후 누적(구매확정 전 추정 포함, 반품 손실·마케팅 반영)</span></div><div id="chMain"></div><div class="note">창 시작을 0 으로 잡은 값. 구매확정 전 주문은 추정으로 들어가 있다.</div></div>
 <div class="pane" style="border-top:1px solid var(--line)"><div class="ph"><b>구매 전환율</b><span id="cvrSrc">WING 인사이트</span></div><div id="chCvr"></div></div>
 <div class="pane" style="border-top:1px solid var(--line)"><div class="ph"><b>P&amp;L BY MONTH</b><span>쇼핑만 · 도구비 제외</span></div><div class="tw"><table id="pnl"></table></div><div class="note" id="pnlNote"></div></div>
 <button class="moreb" id="moreb" type="button" aria-expanded="false">자세히 보기 ▾</button>
@@ -103,8 +103,8 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.sty
 function copy(t,m){navigator.clipboard.writeText(t).then(()=>toast(m||'복사됨'))}
 function setPref(k,v){pref[k]=v;localStorage.setItem('zdb',JSON.stringify(pref));render(D)}
 document.addEventListener('focusin',e=>{if(e.target.tagName==='INPUT')paused=true});document.addEventListener('focusout',()=>setTimeout(()=>paused=false,300));
-/* ── 첫 화면 (2026-11-01 사장님 "불필요한 정보 너무 많아", "추정 싫음") — 숫자는 관제_첫화면.py 의 사실만, 없으면 미확정 ── */
-const netOk2=x=>x.순수익!=null&&x.확정건, fNet=(x,unit)=>netOk2(x)?(x.순수익<0?'-':'')+N(Math.abs(x.순수익))+(unit?'원':''):'미확정', nc=x=>!netOk2(x)?'warn':x.순수익<0?'bad':'ok', U=v=>v==null?'미확정':S(v);
+/* ── 첫 화면 (2026-11-01 사장님 "불필요한 정보 너무 많아", "추정 싫음") — 11/1 "추정은 1만원이면 1만원 표시" → 순수익은 추정 포함(관제_예상.py), 못 읽은 값만 모름 ── */
+const netOk2=x=>x.순수익!=null, fNet=(x,unit)=>netOk2(x)?(x.순수익<0?'-':'')+N(Math.abs(x.순수익))+(unit?'원':''):'모름', nc=x=>!netOk2(x)?'warn':x.순수익<0?'bad':'ok', U=v=>v==null?'모름':S(v);
 function setDecision(cl,msg){const al=document.getElementById('alertl');al.hidden=false;al.className='alertl '+cl;al.textContent=msg}
 function loadFail(m){toast(m);setDecision('warn','불러오기 실패 · 판단 건수 모름')}
 function renderFront(){
@@ -112,20 +112,20 @@ function renderFront(){
  if(nq==null)setDecision('warn','사장님 판단 건수 모름 · 데이터 없음'); else if(nq)setDecision('',`사장님 판단 ${nq}건 · 탭하면 자세히`); else setDecision('ok','사장님 판단 0건');
  if(!F||F.error){el.innerHTML=`<div class="fnote bad">${F?'첫 화면 계산 오류: '+esc(F.error):'새 숫자가 아직 안 실렸습니다 — 관리페이지 서버 재시작 필요'}</div>`;return}
  const t=(k,src,v,sub,c)=>`<div class="tile"><div class="k"><span>${k}</span><span class="src">${src}</span></div><div class="v n ${c||''}">${v}</div>${sub?`<div class="s">${sub}</div>`:''}</div>`;
- const h=x=>`<div class="fh">${x}</div>`, m=F.이번달, a=F.누적, cnt=n=>n==null?'미확정':`${N(n)}건`, won=n=>n==null?'미확정':W(n), vc=v=>v==null?'warn':'', why=x=>esc(x.미확정원인||''), day=d=>esc(String(d).slice(5).replace('-','/')), nt=x=>`<span class="nt">${x}</span>`;
- const E=F.예상, pred=k=>E&&E[k]&&E[k].건?`<div class="pred warn">예상 ${E[k].세후<0?'-':'+'}${W(Math.abs(E[k].세후))} · ${N(E[k].건)}건, 반품·마케팅비 전</div>`:F.예상오류?'<div class="pred warn">예상 계산 실패</div>':'';
- const nsub=x=>x.확정건==null?why(x):`${x.순수익==null?why(x)+' · ':''}확정 ${N(x.확정건)}건 · 미확정 ${N(x.미확정건)}건 매출 ${W(x.미확정매출)} · 반품비 미확정 ${N(x.반품비미확정)}건`;
+ const h=x=>`<div class="fh">${x}</div>`, m=F.이번달, a=F.누적, cnt=n=>n==null?'모름':`${N(n)}건`, won=n=>n==null?'모름':W(n), vc=v=>v==null?'warn':'', why=x=>esc(x.미확정원인||''), day=d=>esc(String(d).slice(5).replace('-','/')), nt=x=>`<span class="nt">${x}</span>`;
+ const E=F.예상;
+ const nsub=x=>x.확정건==null||x.순수익==null?why(x):x.추정건?`구매확정 ${N(x.확정건)}건 ${S(x.확정순수익)} · 구매확정 전 ${N(x.추정건)}건 추정 ${S(x.추정)}`:F.예상오류||E===null?`구매확정 ${N(x.확정건)}건 · 구매확정 전 ${N(x.미확정건)}건 계산 안 됨`:`구매확정 ${N(x.확정건)}건`;
  const rsub=x=>x.반품==null?why(x):`접수일 기준, 진행중 ${N(x.반품진행중)}건 포함${x.교환?` · 교환 ${N(x.교환)}건 별도`:''}`, sub=(x,k,tx)=>x[k]==null?why(x):tx;
  const P=F.입금예정, K=F.쿠셀, B=F.통장, row=(l,n,v,c)=>`<div class="row"><div class="l">${l}<small>${n}</small></div><div class="r n ${c||''}">${v}</div></div>`, kind=x=>x.유형==='RESERVE'?'최종 정산':x.유형==='WEEKLY'?'주간 정산':esc(x.유형);
- const pay=P.행.map(x=>row(`${day(x.정산일)} ${kind(x)}`,`${esc(String(x.인식월).slice(5))}월 매출분 · ${esc(x.구분)}`,U(x.금액),x.금액==null?'warn':x.금액<0?'bad':'')).join('');
- const tot=P.원인?row('입금 예정',esc(P.원인),'미확정','warn tot'):!P.행.length?row('예정 행 없음','쿠팡 정산 API','없음','tot'):row('확정 합','쿠팡이 금액을 끝낸 행(DONE)만',P.행.some(x=>x.구분==='확정')?S(P.확정합):'없음',P.확정합<0?'bad tot':P.확정합>0?'ok tot':'tot')+row('변동 포함 합',`지급 전 행(SUBJECT) 포함, 쿠팡이 바꿀 수 있음${P.미확정행?` · 미확정 ${N(P.미확정행)}행 제외`:''}`,P.변동포함합==null?'미확정':S(P.변동포함합),P.변동포함합==null?'warn tot':P.변동포함합<0?'bad tot':'tot');
+ const pay=P.행.map(x=>row(`${day(x.정산일)} ${kind(x)}`,`${esc(String(x.인식월).slice(5))}월 매출분 · ${x.구분==='미확정'?'금액 없음':esc(x.구분)}`,U(x.금액),x.금액==null?'warn':x.금액<0?'bad':'')).join('');
+ const tot=P.원인?row('입금 예정',esc(P.원인),'모름','warn tot'):!P.행.length?row('예정 행 없음','쿠팡 정산 API','없음','tot'):row('확정 합','쿠팡이 금액을 끝낸 행(DONE)만',P.행.some(x=>x.구분==='확정')?S(P.확정합):'없음',P.확정합<0?'bad tot':P.확정합>0?'ok tot':'tot')+row('변동 포함 합',`지급 전 행(SUBJECT) 포함, 쿠팡이 바꿀 수 있음${P.미확정행?` · 금액 없는 ${N(P.미확정행)}행 제외`:''}`,P.변동포함합==null?'모름':S(P.변동포함합),P.변동포함합==null?'warn tot':P.변동포함합<0?'bad tot':'tot');
  const upd=P.낡음경고?`<span class="warn">${esc(P.낡음경고)}</span>`:`<span>${esc(P.출처)} · ${P.갱신?esc(String(P.갱신).slice(5).replace('-','/'))+' 갱신':'갱신 시각 없음'}</span>`, bad=Object.entries(F.입력문제||{}).map(([k,v])=>esc(k+' '+v)).join(' · '), T0=F.오늘;
  el.innerHTML=h(`오늘 · ${day(F.기준일)}`)+'<div class="tiles">'+t('오늘 주문','주문목록',cnt(T0.주문),T0.원인?esc(T0.원인):'취소·반품 포함',vc(T0.주문))+t('오늘 매출','주문목록',won(T0.매출),T0.원인?esc(T0.원인):'취소·반품 포함',vc(T0.매출))+'</div>'
-  +h(`이번달 · ${esc(F.이번달키)}`)+'<div class="tiles">'+t('매출','주문목록',won(m.매출),sub(m,'매출','취소·반품 제외'),vc(m.매출))+t(nt('순수익 (확정분만)'),'세후',fNet(m,1),nsub(m)+pred('이번달'),nc(m))+t('주문','주문목록',cnt(m.주문),sub(m,'유효건',`유효 ${N(m.유효건)}건 · 취소·반품 포함 전체`),vc(m.주문))+t('반품','반품 기록',cnt(m.반품),rsub(m),vc(m.반품))+t('취소','반품 기록',cnt(m.취소),sub(m,'취소','접수일 기준'),vc(m.취소))+t('매출 1억 목표','매출 ÷ 1억',F.목표.달성률==null?'미확정':`${F.목표.달성률.toFixed(2)}%`,sub(m,'매출','이번달 매출 기준'),vc(F.목표.달성률))+'</div>'
-  +h('누적 · 전체')+'<div class="tiles">'+t('총 매출','주문목록',won(a.매출),sub(a,'매출','취소·반품 제외'),vc(a.매출))+t(nt('총 순수익 (확정분만)'),'세후',fNet(a,1),nsub(a)+pred('누적'),nc(a))+t('총 주문','주문목록',cnt(a.주문),sub(a,'유효건',`유효 ${N(a.유효건)}건 · 취소 ${N(a.취소)}건`),vc(a.주문))+t('총 반품','반품 기록',cnt(a.반품),rsub(a),vc(a.반품))+'</div>'
-  +(bad?`<div class="fnote warn">못 읽은 입력: ${bad} — 그 숫자는 미확정</div>`:`<div class="fnote">순수익은 확정 주문만. 계산식은 월별 표 아래.${E?` 예상은 합계에 안 더함: 실제 원가에 확정 주문 수수료율 ${E.수수료율}% 적용, 반품·마케팅비 전${E.원가없음.건?`, 누적에서 원가 기록 없는 ${N(E.원가없음.건)}건 제외`:''}.`:''}</div>`)
-  +`<div class="pane" style="border-top:1px solid var(--line)"><div class="ph"><b>쿠팡 입금 예정</b>${upd}</div>${pay}${tot}${(P.행없음||[]).map(x=>row(`${day(x.정산일)} 정산 ${N(x.건수)}건`,'쿠팡 지급 행이 아직 없음 — 행이 생기면 최종 정산 금액도 바뀔 수 있음','미확정','warn')).join('')}`
-  +row(K.마지막입금일?`쿠셀 마지막 입금 ${day(K.마지막입금일)}`:K.원인?'쿠셀 입금 기록 못 읽음':'쿠셀 입금 기록 없음',esc(K.원인||K.출처),K.금액==null?(K.원인?'미확정':'없음'):W(K.금액),K.금액==null?'warn':'')+row('쿠셀 다음 입금','API 없음',esc(K.다음입금),'warn')+row('사업 통장 잔액',`${esc(B.출처)} · ${esc(B.기준||'기준 시각 없음')} 기준`,B.잔액==null?'미확정':W(B.잔액),B.잔액==null?'warn':'')+'</div>';
+  +h(`이번달 · ${esc(F.이번달키)}`)+'<div class="tiles">'+t('매출','주문목록',won(m.매출),sub(m,'매출','취소·반품 제외'),vc(m.매출))+t(nt('순수익'),'세후',fNet(m,1),nsub(m),nc(m))+t('주문','주문목록',cnt(m.주문),sub(m,'유효건',`유효 ${N(m.유효건)}건 · 취소·반품 포함 전체`),vc(m.주문))+t('반품','반품 기록',cnt(m.반품),rsub(m),vc(m.반품))+t('취소','반품 기록',cnt(m.취소),sub(m,'취소','접수일 기준'),vc(m.취소))+t('매출 1억 목표','매출 ÷ 1억',F.목표.달성률==null?'모름':`${F.목표.달성률.toFixed(2)}%`,sub(m,'매출','이번달 매출 기준'),vc(F.목표.달성률))+'</div>'
+  +h('누적 · 전체')+'<div class="tiles">'+t('총 매출','주문목록',won(a.매출),sub(a,'매출','취소·반품 제외'),vc(a.매출))+t(nt('총 순수익'),'세후',fNet(a,1),nsub(a),nc(a))+t('총 주문','주문목록',cnt(a.주문),sub(a,'유효건',`유효 ${N(a.유효건)}건 · 취소 ${N(a.취소)}건`),vc(a.주문))+t('총 반품','반품 기록',cnt(a.반품),rsub(a),vc(a.반품))+'</div>'
+  +(bad?`<div class="fnote warn">못 읽은 입력: ${bad} — 그 숫자는 모름</div>`:`<div class="fnote">순수익 = 구매확정 실제 값 + 구매확정 전 추정(판매가 − 원가 − 수수료${E?` ${E.수수료율}%`:''} − 부가세). 환불되면 바로 빠지고, 구매확정되면 실제 값으로 바뀐다. 반품비는 들어오는 대로 뺀다.${E&&E.원가없음.건?` 원가 기록 없는 ${N(E.원가없음.건)}건은 뺌.`:''}</div>`)
+  +`<div class="pane" style="border-top:1px solid var(--line)"><div class="ph"><b>쿠팡 입금 예정</b>${upd}</div>${pay}${tot}${(P.행없음||[]).map(x=>row(`${day(x.정산일)} 정산 ${N(x.건수)}건`,x.추정==null?'쿠팡 지급 행이 생기면 금액이 나옴':`최근 3회 지급(예정) 비율 ${x.비율}%로 추정 · 위 합에는 안 더함`,U(x.추정),x.추정==null?'warn':'')).join('')}`
+  +row(K.마지막입금일?`쿠셀 마지막 입금 ${day(K.마지막입금일)}`:K.원인?'쿠셀 입금 기록 못 읽음':'쿠셀 입금 기록 없음',esc(K.원인||K.출처),K.금액==null?(K.원인?'모름':'없음'):W(K.금액),K.금액==null?'warn':'')+row('쿠셀 다음 입금','API 없음','모름','warn')+row('사업 통장 잔액',`${esc(B.출처)} · ${esc(B.기준||'기준 시각 없음')} 기준`,B.잔액==null?'모름':W(B.잔액),B.잔액==null?'warn':'')+'</div>';
 }
 function chartCvr(){
  const el=document.getElementById('chCvr'), F=D.funnel||{}, rows=F.rows||[], has=rows.filter(r=>r.visitors!=null), sum=(a,k)=>a.reduce((x,r)=>x+(r[k]||0),0);
@@ -141,9 +141,9 @@ function chartCvr(){
 }
 function renderPnl(){
  const F=D.첫화면||{}, T=F.누적, tb=document.getElementById('pnl'), nt=document.getElementById('pnlNote'); if(!T){tb.innerHTML='';nt.textContent='';return}
- const un=v=>v==null?'미확정':N(v), dash=v=>v==null?'미확정':v?N(v):'-', mi=v=>v==null?'미확정':v?'-'+N(v):'-', row=(x,l)=>`<tr><td class="l">${l}</td><td>${x.확정건==null?'미확정':N(x.확정건)+'/'+N(x.미확정건)}</td><td>${dash(x.반품)}</td><td class="hm">${dash(x.취소)}</td><td>${un(x.매출)}</td><td class="hm">${un(x.확정세전)}</td><td class="hm">${un(x.부가세)}</td><td class="hm">${mi(x.반품손실)}</td><td class="hm">${mi(x.마케팅비)}</td><td class="${nc(x)}" style="font-weight:600">${fNet(x)}</td></tr>`;
- tb.innerHTML=`<tr><th class="l">월</th><th>확정/미확정</th><th>반품</th><th class="hm">취소</th><th>매출</th><th class="hm">확정 세전</th><th class="hm">부가세</th><th class="hm">반품 손실</th><th class="hm">마케팅</th><th>순수익</th></tr>`+(F.표||[]).map(x=>row(x,esc(x.month.slice(2)))).join('')+row(T,'누적');
- nt.textContent=`확정/미확정 = 취소·반품 뺀 주문 줄. 매출은 둘 다 포함, 세전·부가세·순수익은 확정만. 세후 = 세전 − 부가세, 종소세 전. 부가세 = 월 확정 세전 ÷ 11 (9월~, 8월 간이 0). 순수익 = 세후 − 반품 손실 − 마케팅비. ${T.확정건==null?'미확정 사유: '+(T.미확정원인||''):`누적 미확정 ${N(T.미확정건)}건 매출 ${W(T.미확정매출)} · 반품비 미확정 ${N(T.반품비미확정)}건(손실 0 으로 잡힘)${T.순수익==null?' · 순수익 미확정 사유: '+(T.미확정원인||''):''}.`}`;
+ const un=v=>v==null?'모름':N(v), dash=v=>v==null?'모름':v?N(v):'-', mi=v=>v==null?'모름':v?'-'+N(v):'-', row=(x,l)=>`<tr><td class="l">${l}</td><td>${x.확정건==null?'모름':N(x.확정건)+'/'+N(x.미확정건)}</td><td>${dash(x.반품)}</td><td class="hm">${dash(x.취소)}</td><td>${un(x.매출)}</td><td class="hm">${un(x.확정세전)}</td><td class="hm">${un(x.부가세)}</td><td class="hm">${mi(x.반품손실)}</td><td class="hm">${mi(x.마케팅비)}</td><td class="${nc(x)}" style="font-weight:600">${fNet(x)}</td></tr>`;
+ tb.innerHTML=`<tr><th class="l">월</th><th>구매확정/전</th><th>반품</th><th class="hm">취소</th><th>매출</th><th class="hm">확정 세전</th><th class="hm">부가세</th><th class="hm">반품 손실</th><th class="hm">마케팅</th><th>순수익</th></tr>`+(F.표||[]).map(x=>row(x,esc(x.month.slice(2)))).join('')+row(T,'누적');
+ nt.textContent=`구매확정/전 = 취소·반품 뺀 주문 줄. 매출은 둘 다 포함. 세전·부가세 칸은 구매확정만, 순수익 칸은 구매확정 전 추정까지 포함. 세후 = 세전 − 부가세, 종소세 전. 부가세 = 월 세전 ÷ 11 (9월~, 8월 간이 0). 순수익 = 세후 − 반품 손실 − 마케팅비. ${T.확정건==null||T.순수익==null?'못 읽은 이유: '+(T.미확정원인||''):`반품비 대기 ${N(T.반품비미확정)}건은 들어오는 대로 뺀다.`}`;
 }
 /* ── 헤더 · 타일 ── */
 function renderTop(){
@@ -158,7 +158,7 @@ function renderTop(){
  const M=(D.delivery_acc||{}).metrics||{}, ship=M.ship||{}, minN=((D.delivery_acc||{}).targets||{}).min_n||20, few=ship.n&&ship.n<minN, C=(D.pnl||{}).cash||{}; const dl=r.daily30||[], avg7=dl.slice(-7).reduce((a,x)=>a+(x.cp||0),0)/7, need=Math.max(0,(r.target||0)-(r.cp_ok||0)), days=avg7>0?Math.ceil(need/avg7):null;
  const tile=(k,src,est,v,s,c,pct,bc)=>`<div class="tile"><div class="k"><span>${k}</span><span class="src ${est?'est':''}">${src}</span></div><div class="v n ${c}">${v}</div><div class="s">${s}</div><div class="bar"><i style="width:${Math.max(0,Math.min(100,pct))}%;background:${bc||'var(--acc)'}"></i></div></div>`;
  document.getElementById('tiles').innerHTML=
-  tile('<span class="nt">순수익 (확정분만)</span>',`${cur.slice(5)}월 세후`,0,Fm?fNet(Fm,1):'미확정',Fm?(Fm.확정건==null?esc(Fm.미확정원인||''):`${Fm.순수익==null?esc(Fm.미확정원인||'')+' · ':''}확정 ${Fm.확정건}건 · 미확정 ${Fm.미확정건}건 · 반품비 미확정 ${Fm.반품비미확정}건`):'새 숫자 대기',Fm?nc(Fm):'warn',Math.min(100,((Fm&&Fm.순수익)||0)/4e6*100),'var(--ok)')+
+  tile('<span class="nt">순수익</span>',`${cur.slice(5)}월 세후`,0,Fm?fNet(Fm,1):'모름',Fm?(Fm.확정건==null?esc(Fm.미확정원인||''):`${Fm.순수익==null?esc(Fm.미확정원인||'')+' · ':''}구매확정 ${Fm.확정건}건${Fm.추정건?` · 구매확정 전 ${Fm.추정건}건 추정 포함`:''}`):'새 숫자 대기',Fm?nc(Fm):'warn',Math.min(100,((Fm&&Fm.순수익)||0)/4e6*100),'var(--ok)')+
   tile('오늘 주문','실측',0,O.filter(o=>String(o.날짜||'').startsWith(today)).length,`7일 ${n7}건 · 전주 ${n14}건 · 누적 ${O.length}`,'',n7/40*100)+
   tile('쿠팡 리스팅','실측',0,N(r.cp_ok),`${N(r.target)}까지 ${days==null?'-':days+'일'} · 오늘 +${r.today_new??'-'}`,'',r.target?(r.cp_ok||0)/r.target*100:0)+
   tile('정시 출고',ship.n?`표본 ${ship.n}`:'없음',0,ship.n?`${Number(ship.pct).toFixed(1)}%`:'-',!ship.n?'판정된 주문 없음':few?`표본 부족 (${ship.n}/${minN}) · ${ship.ok}/${ship.n}건`:`${ship.ok}/${ship.n}건 · 목표 99%${ship.pct<99?' 미달':''}`,few?'':ship.n&&ship.pct<99?'bad':'ok',ship.pct||0,few?'var(--mut2)':ship.pct<99?'var(--bad)':'var(--ok)')+
@@ -221,7 +221,7 @@ function renderQueue(){
  document.getElementById('queue').innerHTML=(dec.map(o=>orderCard(o,++i)).join('')+al.map(a=>alertCard(a,++i)).join('')+info.map(a=>alertCard(a,++i,true)).join(''))||'<div class="empty">결정할 것 없음 — 시스템이 정상 운영 중</div>';
  const lateN=inflight.filter(o=>o.출고기한초과>0).length;
  document.getElementById('ifn').textContent=`IN FLIGHT · ${inflight.length}${lateN?` · 출고기한 초과 ${lateN}`:''}`;
- document.getElementById('inflight').innerHTML=inflight.map(o=>{const p=o.손익||{}, lt=o.출고기한초과>0?`<div style="margin-top:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="tag ${o.메모?'warn':'bad'}">출고기한 초과 ${o.출고기한초과}일</span><span class="m" style="font-size:10.5px;color:var(--mut2)">기한 ${esc(o.출고기한)} · 송장 없음</span>${o.메모?`<span style="font-size:12.5px;color:var(--warn)">${esc(strip(o.메모))}</span>`:''}</div>`:'';return `<div style="padding:14px 0;border-bottom:1px solid var(--line2)"><div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><span style="font-size:14px;font-weight:600">${esc(strip(o.상품명).slice(0,44))}</span><span class="m n" style="font-size:14px;font-weight:600;white-space:nowrap">${W(o.판매가)}</span></div>${lt}<div class="steps"><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div><div class="m" style="font-size:10.5px;color:var(--mut2);margin-top:7px">${esc(String(o.날짜).slice(5))} · ${esc(o.옵션||'')} · ${o.실수수료&&o.실결제액?`세후 ${N(p.내손에)}`:'세후 미확정'}</div><div style="font-size:13px;color:#9BA1A5;margin-top:6px">${esc(o.결제시각||'')} 결제 ${W(o.실결제액||o.원가)} · 무신사 주문 ${esc(o.무신사주문번호||'-')}</div></div>`}).join('')||'<div class="empty">발송 대기 없음</div>';
+ document.getElementById('inflight').innerHTML=inflight.map(o=>{const p=o.손익||{}, lt=o.출고기한초과>0?`<div style="margin-top:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="tag ${o.메모?'warn':'bad'}">출고기한 초과 ${o.출고기한초과}일</span><span class="m" style="font-size:10.5px;color:var(--mut2)">기한 ${esc(o.출고기한)} · 송장 없음</span>${o.메모?`<span style="font-size:12.5px;color:var(--warn)">${esc(strip(o.메모))}</span>`:''}</div>`:'';return `<div style="padding:14px 0;border-bottom:1px solid var(--line2)"><div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><span style="font-size:14px;font-weight:600">${esc(strip(o.상품명).slice(0,44))}</span><span class="m n" style="font-size:14px;font-weight:600;white-space:nowrap">${W(o.판매가)}</span></div>${lt}<div class="steps"><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div><div class="m" style="font-size:10.5px;color:var(--mut2);margin-top:7px">${esc(String(o.날짜).slice(5))} · ${esc(o.옵션||'')} · ${o.실수수료&&o.실결제액?`세후 ${N(p.내손에)}`:p.내손에!=null?`세후 추정 ${N(p.내손에)}`:'세후 모름'}</div><div style="font-size:13px;color:#9BA1A5;margin-top:6px">${esc(o.결제시각||'')} 결제 ${W(o.실결제액||o.원가)} · 무신사 주문 ${esc(o.무신사주문번호||'-')}</div></div>`}).join('')||'<div class="empty">발송 대기 없음</div>';
  document.getElementById('log').textContent=strip(D.log||'').split('\n').slice(-12).join('\n');
 }
 /* ── 현금 · 재고 · 자동 ── */
@@ -231,7 +231,7 @@ function renderSide(){
  const row=(l,n,v,c)=>`<div class="row"><div class="l">${l}<small>${n}</small></div><div class="r n ${c||''}">${v}</div></div>`;
  const bill=Object.entries(C.우리카드_결제예정||{}).map(([d,a])=>`${d.slice(5).replace('-','/')} ${N(a)}`).join(' · ');
  document.getElementById('cash').innerHTML=row('입금 완료',`스스 실입금 ${N(C.입금완료_스스||0)} · 쿠팡 지급 완료 ${N(C.입금완료_쿠팡||0)}`,W(C.입금완료||0),'ok')
-  +row('입금 예정 · 쿠팡 정산 API',FP?((FP.원인?esc(FP.원인):FP.행.map(d=>`${esc(d.정산일.slice(5))} ${d.유형==='RESERVE'?'최종':'주간'} ${esc(d.구분)} ${U(d.금액)}`).join('<br>')||'예정 없음')+(FP.행없음||[]).map(x=>`<br>${esc(x.정산일.slice(5))} ${N(x.건수)}건 미확정 (지급 행 없음)`).join('')):'새 숫자 대기',!FP||FP.원인?'미확정':FP.행.length?U(FP.변동포함합):'없음')
+  +row('입금 예정 · 쿠팡 정산 API',FP?((FP.원인?esc(FP.원인):FP.행.map(d=>`${esc(d.정산일.slice(5))} ${d.유형==='RESERVE'?'최종':'주간'} ${esc(d.구분)} ${U(d.금액)}`).join('<br>')||'예정 없음')+(FP.행없음||[]).map(x=>`<br>${esc(x.정산일.slice(5))} ${N(x.건수)}건 추정 ${U(x.추정)} (지급 행 없음)`).join('')):'새 숫자 대기',!FP||FP.원인?'모름':FP.행.length?U(FP.변동포함합):'없음')
   +row('지출',`토스 사업자 체크 ${N(cd('토스 사업자 체크').금액)} (${cd('토스 사업자 체크').건수}건) · 우리카드 ${N(cd('우리카드').금액)} (${cd('우리카드').건수}건${bill?`, 결제 ${bill}`:''}) · 미분류 ${N(cd('미분류').금액)} (${cd('미분류').건수}건)`,'-'+W(C.지출||0),'bad')
   +row('순현금','입금 완료 − 지출',S(C.순현금||0),(C.순현금||0)<0?'bad':'ok');
  const L=D.listings||[], r=D.registration||{}, cs=r.cp_status||null, stopped=L.filter(x=>x.stopped).length, bleedHist=L.filter(x=>x.bleed).length, bleedAct=L.filter(x=>x.bleed_active).length, neg=L.filter(x=>typeof x.cp_net==='number'&&x.cp_net<0).length, optOut=L.filter(x=>(x.flags||[]).some(f=>f==='옵션품절')).length, allOut=L.filter(x=>(x.flags||[]).includes('품절')).length;
@@ -245,13 +245,13 @@ function renderSide(){
 }
 /* ── 차트 (SVG) ── */
 function chartMain(el){
- const rows=(D.첫화면||{}).추이||[]; if(!rows.length){el.innerHTML=`<div class="empty">${D.첫화면&&D.첫화면.입력문제&&D.첫화면.입력문제['주문목록.json']?'추이 미확정 · 주문목록 못 읽음':'추이 데이터 없음'}</div>`;return}
+ const rows=(D.첫화면||{}).추이||[]; if(!rows.length){el.innerHTML=`<div class="empty">${D.첫화면&&D.첫화면.입력문제&&D.첫화면.입력문제['주문목록.json']?'추이 모름 · 주문목록 못 읽음':'추이 데이터 없음'}</div>`;return}
  const Wd=el.clientWidth&&el.clientWidth<640?420:1200,H=210,L=46,R=58,T=16,B=24,iw=Wd-L-R,ih=H-T-B,n=rows.length,bw=iw/n, omax=Math.max(1,...rows.map(r=>r.orders||0)), cv=rows.map(r=>r.누적순수익||0), cmax=Math.max(1,...cv.map(Math.abs)), noLine=rows.some(r=>r.누적순수익==null);
  const yo=v=>T+ih-(v/omax)*ih, yc=v=>T+ih/2-(v/cmax)*(ih/2); let g='';
  [0,.5,1].forEach(f=>{const y=T+ih-f*ih;g+=`<line x1="${L}" x2="${Wd-R}" y1="${y}" y2="${y}" stroke="${f===0?'#2E3336':'#191C1E'}"/><text x="${L-8}" y="${y+4}" text-anchor="end" font-size="10" font-family="IBM Plex Mono,monospace" fill="#61686C">${Math.round(omax*f)}</text>`});
  if(!noLine)[-1,0,1].forEach(f=>{const y=yc(cmax*f);g+=`<text x="${Wd-R+8}" y="${y+4}" font-size="10" font-family="IBM Plex Mono,monospace" fill="#61686C">${f===0?'0':(f<0?'-':'')+(cmax<1000?cmax:Math.round(cmax/1000)+'k')}</text>`});
  rows.forEach((r,i)=>{if(!r.orders)return;const x=L+bw*i+bw*.26,w=bw*.48;g+=`<rect x="${x.toFixed(1)}" y="${yo(r.orders).toFixed(1)}" width="${w.toFixed(1)}" height="${(ih-(yo(r.orders)-T)).toFixed(1)}" fill="#2F3A42"><title>${esc(r.date)} 주문 ${r.orders}</title></rect><text x="${(x+w/2).toFixed(1)}" y="${(yo(r.orders)-5).toFixed(1)}" text-anchor="middle" font-size="9.5" font-family="IBM Plex Mono,monospace" fill="#7C8388">${r.orders}</text>`});
- if(noLine)g+=`<text x="${Wd-R}" y="${T+12}" text-anchor="end" font-size="12" font-family="IBM Plex Mono,monospace" fill="#D9A867">순수익 선 미확정</text>`; else{g+=`<polyline points="${rows.map((r,i)=>`${(L+bw*i+bw/2).toFixed(1)},${yc(r.누적순수익||0).toFixed(1)}`).join(' ')}" fill="none" stroke="#6FB08A" stroke-width="2"/>`;
+ if(noLine)g+=`<text x="${Wd-R}" y="${T+12}" text-anchor="end" font-size="12" font-family="IBM Plex Mono,monospace" fill="#D9A867">순수익 선 모름</text>`; else{g+=`<polyline points="${rows.map((r,i)=>`${(L+bw*i+bw/2).toFixed(1)},${yc(r.누적순수익||0).toFixed(1)}`).join(' ')}" fill="none" stroke="#6FB08A" stroke-width="2"/>`;
  const last=rows[n-1], lx=L+bw*(n-1)+bw/2, ly=yc(last.누적순수익||0); g+=`<circle cx="${lx}" cy="${ly}" r="3.5" fill="#6FB08A"/><text x="${lx-8}" y="${ly-10}" text-anchor="end" font-size="12" font-weight="600" font-family="IBM Plex Mono,monospace" fill="${(last.누적순수익||0)<0?'#D9736B':'#6FB08A'}">${N(last.누적순수익||0)}</text>`}
  rows.forEach((r,i)=>{if(i%5===0||i===n-1)g+=`<text x="${(L+bw*i+bw/2).toFixed(1)}" y="${H-7}" text-anchor="middle" font-size="10" font-family="IBM Plex Mono,monospace" fill="#61686C">${esc(r.date.slice(5))}</text>`});
  el.innerHTML=`<svg viewBox="0 0 ${Wd} ${H}" width="100%" style="display:block;margin-top:12px;overflow:visible">${g}</svg>`;
@@ -296,15 +296,15 @@ function renderTables(){
  const cur=(D.money||{}).month||new Date().toISOString().slice(0,7), rt=((D.returns||{}).months||{})[cur]||{}, rn=(rt.반품||0)+(rt.교환||0), cnt=(D.money||{}).count||0, RR=(D.returns||{}).rows||[], vendorN=RR.filter(x=>String(x.날짜||'').startsWith(cur)&&x.귀책==='판매자').length;
  document.getElementById('retn').textContent=`${cur.slice(5)}월 ${rn}건 / 주문 ${cnt}건`;
  const row=(l,n,v,c)=>`<div class="row"><div class="l">${l}<small>${n}</small></div><div class="r n ${c||''}">${v}</div></div>`;
- document.getElementById('returns').innerHTML=row(`${cur.slice(5)}월 반품`,`반품률 ${cnt?Math.round(rn/cnt*100):0}% · 판매자 귀책 ${vendorN}`,`${rn}건`,rn?'warn':'ok')+row('반품 손실','무신사 반품비 − 고객부담 '+N(rt.고객부담||0)+(rt.반품비미확정?` · 반품비 미확정 ${rt.반품비미확정}건`:''),'-'+W(rt.반품손실||0),(rt.반품손실||0)?'bad':'')+row('취소','출고 전 중지 · 반품·판매자 귀책 아님',`${rt.취소||0}건`)+row('환불·취소된 판매액','매출에서 제외',W(rt.금액||0))+row('진행 중',rt.진행중?'승인 대기':'승인 대기 없음',`${rt.진행중||0}건`,rt.진행중?'warn':'ok');
+ document.getElementById('returns').innerHTML=row(`${cur.slice(5)}월 반품`,`반품률 ${cnt?Math.round(rn/cnt*100):0}% · 판매자 귀책 ${vendorN}`,`${rn}건`,rn?'warn':'ok')+row('반품 손실','무신사 반품비 − 고객부담 '+N(rt.고객부담||0)+(rt.반품비미확정?` · 반품비 대기 ${rt.반품비미확정}건`:''),'-'+W(rt.반품손실||0),(rt.반품손실||0)?'bad':'')+row('취소','출고 전 중지 · 반품·판매자 귀책 아님',`${rt.취소||0}건`)+row('환불·취소된 판매액','매출에서 제외',W(rt.금액||0))+row('진행 중',rt.진행중?'승인 대기':'승인 대기 없음',`${rt.진행중||0}건`,rt.진행중?'warn':'ok');
 }
 function renderBottom(){
  const O=[...(D.orders||[])].sort((a,b)=>String(b.날짜).localeCompare(String(a.날짜))), RR=(D.returns||{}).rows||[], retBy={}; RR.forEach(x=>{(x.라인&&x.라인.length?x.라인:['주문:'+x.주문번호]).forEach(k=>retBy[k]=x)}); const retOf=o=>retBy[String(o.productOrderId)]||retBy['주문:'+o.주문번호];   /* 2026-11-01 줄 단위(excluded_orders 와 같게) — 주문번호 단위면 한 줄만 반품된 주문의 다른 줄까지 반품으로 보였다 */
  document.getElementById('ledgerP').style.display=pref.ledger?'':'none'; document.getElementById('listP').style.display=pref.list?'':'none';
  const conf=o=>o.실수수료&&o.실결제액, valid=O.filter(o=>!retOf(o)), cf=valid.filter(conf).length;
- document.getElementById('ledgerNote').textContent=`${O.length}건 (반품·취소 ${O.length-valid.length}) · 확정 ${cf} / 미확정 ${valid.length-cf}`;
+ document.getElementById('ledgerNote').textContent=`${O.length}건 (반품·취소 ${O.length-valid.length}) · 구매확정 ${cf} / 전 ${valid.length-cf}`;
  document.getElementById('ledger').innerHTML=`<tr><th class="l">날짜</th><th class="l">마켓</th><th class="l">상품</th><th>판매가</th><th>실결제</th><th>수수료</th><th>세후</th></tr>`+O.map(o=>{const p=o.손익||{},ret=retOf(o),net=ret?-(ret.반품손실||0):conf(o)?p.내손에:null;
-  return `<tr><td class="l">${esc(String(o.날짜).slice(5))}</td><td class="l"><span class="tag ${o.마켓==='쿠팡'?'cp':'ss'}">${esc(o.마켓||'스스')}</span></td><td class="t">${esc(strip(o.상품명).slice(0,44))}<span> · ${esc(o.옵션||'')}</span>${ret?` <span class="tag ${ret.구분==='취소'?'':'bad'}">${esc(ret.구분||'반품')}</span>`:''}</td><td>${N(o.판매가)}</td><td>${N(o.실결제액||o.원가)}</td><td>${o.실수수료?N(o.실수수료):'미확정'}</td><td class="${net==null?'':net<0?'bad':'ok'}" style="font-weight:600">${net==null?'미확정':S(net)}</td></tr>`}).join('');
+  return `<tr><td class="l">${esc(String(o.날짜).slice(5))}</td><td class="l"><span class="tag ${o.마켓==='쿠팡'?'cp':'ss'}">${esc(o.마켓||'스스')}</span></td><td class="t">${esc(strip(o.상품명).slice(0,44))}<span> · ${esc(o.옵션||'')}</span>${ret?` <span class="tag ${ret.구분==='취소'?'':'bad'}">${esc(ret.구분||'반품')}</span>`:''}</td><td>${N(o.판매가)}</td><td>${N(o.실결제액||o.원가)}</td><td>${o.실수수료?N(o.실수수료):'모름'}</td><td class="${net==null?'':net<0?'bad':'ok'}" style="font-weight:600">${net==null?'모름':S(net)}</td></tr>`}).join('');
  const L=D.listings||[], warn=x=>x.stopped||x.bleed_active||(x.flags||[]).some(f=>['옵션품절','상품품절','품절','재고임박','마진가드','원가상승'].includes(f)), rows=[...L.filter(warn),...L.filter(x=>!warn(x))].slice(0,60);
  document.getElementById('listNote').textContent=`${N(L.length)} 리스팅 중 주의 ${N(L.filter(warn).length)} 우선 · 60종 표시`;
  document.getElementById('list').innerHTML=`<tr><th class="l">상품</th><th>원가</th><th>쿠팡가</th><th>세전</th><th class="l">상태</th></tr>`+rows.map(x=>{const fl=x.stopped?'중지':x.bleed_active?'지혈가':(x.flags||[])[0]||'', c=x.cp_net==null?'':x.cp_net<0?'bad':x.cp_net<4000?'warn':'ok';
@@ -319,7 +319,7 @@ function renderSimple(){const s=D.simple||{},el=document.getElementById('simple'
  const c1=`<div class="sc"><h3>돈 <span class="src">사실만</span></h3><div class="big">${fs.통장==null?'-':W(fs.통장)}</div>
   <div class="why">사업 통장 잔액 (후잉 ${esc(fs.통장기준||'')})</div>
   ${ln('우리카드 사업 대금'+(fs.카드?' '+esc(String(fs.카드.결제일).slice(5).replace('-','/'))+' · '+N(fs.카드.건수)+'건':''),fs.카드?W(fs.카드.금액):'-','bad')}
-  ${fi.length?fi.map(x=>ln('쿠팡 지급 예정 '+esc(String(x.정산일).slice(5).replace('-','/'))+(x.유형==='RESERVE'?' (유보분)':'')+' · '+esc(x.구분),U(x.금액),x.금액==null?'warn':x.금액<0?'bad':x.구분==='확정'?'ok':'')).join(''):!FI||FI.error?ln('쿠팡 지급 예정 (정산 API)','새 숫자 대기','warn'):FI.원인?ln('쿠팡 지급 예정 (정산 API)','미확정 · '+esc(FI.원인),'warn'):ln('쿠팡 지급 예정 (정산 API)','없음')}
+  ${fi.length?fi.map(x=>ln('쿠팡 지급 예정 '+esc(String(x.정산일).slice(5).replace('-','/'))+(x.유형==='RESERVE'?' (유보분)':'')+' · '+esc(x.구분),U(x.금액),x.금액==null?'warn':x.금액<0?'bad':x.구분==='확정'?'ok':'')).join(''):!FI||FI.error?ln('쿠팡 지급 예정 (정산 API)','새 숫자 대기','warn'):FI.원인?ln('쿠팡 지급 예정 (정산 API)','모름 · '+esc(FI.원인),'warn'):ln('쿠팡 지급 예정 (정산 API)','없음')}
   ${wu?ln('미구매확정 '+N(wu.건수)+'건 · 배송완료 '+N((wb.배송완료||{}).건수||0)+' · 결제완료 '+N((wb.결제완료||{}).건수||0)+' (WING '+esc(String(wu.기준일||'').slice(5))+')',W(wu.금액)):''}
   ${wt?ln('WING '+esc(String(wt.기간||'').replace(/2026-/g,''))+' 주문 '+N(wt.주문)+'건 · 방문 '+N(wt.방문),W(wt.매출)):''}
   <div class="ft">추정·가정 없음. 카드 대금 = 사업비용 기록 합(카드 청구서 확인 전) · 지급 예정 = 정산 API 행 중 정산일이 오늘 이후인 것 전부(음수 포함) · 미구매확정·방문은 사장님이 넣은 WING 파일.</div></div>`;
@@ -327,8 +327,8 @@ function renderSimple(){const s=D.simple||{},el=document.getElementById('simple'
  const c2=`<div class="sc"><h3>${nx.결제일?esc(nx.결제일.slice(5).replace('-','/'))+' ':''}우리카드 사업 대금 <span class="src est">청구 기준 확인 전</span></h3><div class="big ${short>0?'bad':'ok'}">${nx.사업매입==null?'-':W(nx.사업매입)}</div>
   <div class="why">${nx.이용월?esc(nx.이용월.slice(5))+'월 무신사 사입 '+N(nx.건수)+'건':'다가오는 대금 없음'}${nx.환불대기?` · 환불 대기 ${W(nx.환불대기)} 별도`:''}</div>
   ${ln('준비된 돈 (사업 통장)',W(c.준비된돈))}${ln('부족',short==null?'-':short>0?W(short):'없음',short>0?'bad':'ok')}
-  ${ln('그 전에 들어올 쿠팡 돈 (정산 API 지급예정)',cpNo?'미확정':S(cp),cpNo?'warn':'')}${ln('쿠팡 돈이 예정대로 오면 부족',after==null?(cpNo?'미확정':'-'):after>0?W(after):'없음',after>0?'warn':'ok')}
-  <div class="ft">사입 금액은 무신사 주문서 원천 대조값. 청구일은 '결제일 25일·전월 사용분'으로 가정(카드사 이용기간 확인 전). 쿠팡 지급: ${cpNo?'미확정':cpRows.map(r=>esc(String(r[0]).slice(5))+' '+(r[1]==null?'미확정':(r[1]<0?'-':'')+N(Math.abs(r[1])))).join(' · ')||'없음'}.</div></div>`;
+  ${ln('그 전에 들어올 쿠팡 돈 (정산 API 지급예정)',cpNo?'모름':S(cp),cpNo?'warn':'')}${ln('쿠팡 돈이 예정대로 오면 부족',after==null?(cpNo?'모름':'-'):after>0?W(after):'없음',after>0?'warn':'ok')}
+  <div class="ft">사입 금액은 무신사 주문서 원천 대조값. 청구일은 '결제일 25일·전월 사용분'으로 가정(카드사 이용기간 확인 전). 쿠팡 지급: ${cpNo?'모름':cpRows.map(r=>esc(String(r[0]).slice(5))+' '+(r[1]==null?'모름':(r[1]<0?'-':'')+N(Math.abs(r[1])))).join(' · ')||'없음'}.</div></div>`;
  const dec=p.판단||[],cl=p.Claude||[],au=p.자동||[];
  const c3=`<div class="sc"><h3>문제</h3><div class="big ${dec.length?'bad':'ok'}">사장님 판단 ${dec.length}건</div>
   <div class="why">${dec.length?'':'지금 사장님이 하실 일은 없습니다'}</div>
@@ -350,7 +350,7 @@ function render(d){if(!d)return;D=d;renderFront();chartMain(document.getElementB
 function load(manual){if(paused&&!manual)return;
  if(REMOTE){fetch(API+'/data?key='+RKEY).then(r=>r.json()).then(rows=>{const st={};(rows||[]).forEach(x=>st[x.kind]=x);const d=(st.dashboard||{}).payload;if(!d){loadFail('아직 동기화된 데이터 없음');return}d._sync_age=st.dashboard.updated_at?Math.round((Date.now()-new Date(st.dashboard.updated_at))/1000):null;render(d);if(manual)toast('새로고침')}).catch(()=>loadFail('불러오기 실패'));return}
  fetch('/data'+(RKEY?'?key='+RKEY:'')).then(r=>r.json()).then(d=>{d._sync_age=null;render(d);if(manual)toast('새로고침')}).catch(()=>loadFail('불러오기 실패'))}
-const VERSION='ZDV-'+'20261101-6';
+const VERSION='ZDV-'+'20261101-7';
 (function(){const b=document.getElementById('moreb'),d=document.getElementById('detail');let open=false;try{open=localStorage.getItem('zdb_detail')==='1'}catch(e){}
  const set=o=>{d.style.display=o?'':'none';b.textContent=o?'간단히 보기 ▴':'자세히 보기 ▾';b.setAttribute('aria-expanded',o?'true':'false');try{localStorage.setItem('zdb_detail',o?'1':'0')}catch(e){};if(o&&D)render(D)};
  b.addEventListener('click',()=>set(d.style.display==='none'));set(open);window.openDetail=()=>{set(true);const hasOrder=D&&D.orders&&D.watch&&queueData().dec.length;(hasOrder?document.getElementById('queue').closest('.pane'):document.getElementById('simple')).scrollIntoView()}})();
