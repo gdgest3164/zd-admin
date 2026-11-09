@@ -131,6 +131,6 @@ function load(){
   d._sync_age=st.dashboard.updated_at?Math.round((Date.now()-new Date(st.dashboard.updated_at))/1000):null;render(d)}).catch(()=>fail('불러오기 실패'));return}
  fetch('/data'+(RKEY?'?key='+encodeURIComponent(RKEY):'')).then(r=>r.json()).then(d=>{d._sync_age=null;render(d)}).catch(()=>fail('불러오기 실패'))}
 document.getElementById('todoBtn').addEventListener('click',e=>{const b=document.getElementById('todoBox'),on=b.style.display!=='block';b.style.display=on?'block':'none';e.currentTarget.setAttribute('aria-expanded',on)});
-document.getElementById('oldLink').href=REMOTE?'b.html'+location.search:'/b'+location.search;
+document.getElementById('oldLink').href=REMOTE?'b_old.html'+location.search:'/b'+location.search;   // 11/9 사장님 "c로 배포해" — 폰 b.html 은 c 로 넘김, 옛 화면(결정 버튼)은 b_old.html
 load();setInterval(load,REMOTE?300000:60000);
 </script></body></html>
